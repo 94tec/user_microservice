@@ -1,0 +1,10 @@
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+.README.md
+.application.properties
+.src/main/resources/application.properties
+
