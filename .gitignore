@@ -4,5 +4,4 @@
 *.iml
 *.ipr
 
-.application.properties
-.README.md
+.db-credentials.properties
