@@ -18,6 +18,7 @@ public class UserProfile {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    public UserProfile() {}
     public UserProfile(Long id, String firstName, String lastName, String avatarUrl, boolean isPublic, User user) {
         this.id = id;
         this.firstName = firstName;

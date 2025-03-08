@@ -3,6 +3,11 @@ package com.warmUP.user_Auth.service;
 import com.warmUP.user_Auth.exception.ResourceNotFoundException;
 import com.warmUP.user_Auth.model.User;
 import com.warmUP.user_Auth.repository.UserRepository;
+import com.warmUP.user_Auth.util.JwtUtil;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -19,11 +24,15 @@ public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
+    private final JwtUtil jwtUtil;
 
     // ✅ Constructor-based dependency injection (Best Practice)
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, @Lazy AuthenticationManager authenticationManager, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.authenticationManager = authenticationManager;
+        this.jwtUtil = jwtUtil;
     }
     // ✅ Load user by username (required by UserDetailsService)
     @Override
@@ -43,6 +52,22 @@ public class UserService implements UserDetailsService {
         return userRepository.save(user);
     }
 
+    // ✅ Login a user and generate a JWT token
+    public String loginUser(String username, String password) {
+        try {
+            // Authenticate the user
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(username, password));
+
+            // Load user details
+            final UserDetails userDetails = loadUserByUsername(username);
+
+            // Generate a JWT token
+            return jwtUtil.generateToken(userDetails);
+        } catch (BadCredentialsException e) {
+            throw new BadCredentialsException("Invalid username or password");
+        }
+    }
     // ✅ Get all users
     public List<User> getAllUsers() {
         return userRepository.findAll();

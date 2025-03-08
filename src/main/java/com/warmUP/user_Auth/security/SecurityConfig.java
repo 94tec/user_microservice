@@ -6,6 +6,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,10 +30,12 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // Disable CSRF for simplicity (enable in production)
+                .csrf(AbstractHttpConfigurer::disable) // Disable CSRF for simplicity (enable in production)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/users").permitAll() // Allow unauthenticated access to POST /api/users
+                        .requestMatchers("/api/users/register").permitAll() // Allow unauthenticated access to POST /api/users/register
+                        .requestMatchers("/api/users/login").permitAll() // Allow unauthenticated access to POST /api/users/login
+                        .requestMatchers("/api/users").authenticated() // Secure GET /api/users (retrieve all users)
                         .requestMatchers("/api/users/**").authenticated() // Secure all other user endpoints
                         .requestMatchers("/api/admin/**").hasRole("ADMIN") // Admin-only endpoints
                         .anyRequest().authenticated() // Secure all other endpoints
