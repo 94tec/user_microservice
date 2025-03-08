@@ -1,10 +1,17 @@
 package com.warmUP.user_Auth.model;
 
 import jakarta.persistence.*;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 @Entity
-public class User {
+public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,16 +25,32 @@ public class User {
     private String firstName;
     private String lastName;
     private String email;
-    private boolean emailVerified; // To track if the user's email is verified
-    private boolean active; // To track if the account is active or deactivated
     // Audit fields
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    // Auto-generated fields
+    private boolean emailVerified = false; // Default to false, set to true after email verification
+    private boolean active = true; // Default to true, set to false if account is deactivated
 
+    @Column(updatable = false) // createdAt should not be updated after creation
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
+    //social login
+    private String provider; // e.g., "google", "facebook"
+    private String providerId; // Unique ID from the provider
     // Password reset fields
     private String passwordResetToken;
     private LocalDateTime passwordResetTokenExpiry;
 
+    // Email verification fields
+    private String emailVerificationToken;
+    private LocalDateTime emailVerificationTokenExpiry;
+    // Relationship with UserProfile (One-to-One)
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private UserProfile userProfile;
+
+    // Relationship with AuditLog (One-to-Many)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<AuditLog> auditLogs;
     // Default constructor (required by JPA)
     public User() {}
 
@@ -41,8 +64,6 @@ public class User {
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
-        this.emailVerified = emailVerified;
-        this.active = active;
         this.createdAt = LocalDateTime.now(); // Set createdAt to the current time
         this.updatedAt = LocalDateTime.now(); // Set updatedAt to the current time
     }
@@ -151,6 +172,65 @@ public class User {
 
     public void setPasswordResetTokenExpiry(LocalDateTime passwordResetTokenExpiry) {
         this.passwordResetTokenExpiry = passwordResetTokenExpiry;
+    }
+    public String getEmailVerificationToken() {
+        return emailVerificationToken;
+    }
+
+    public void setEmailVerificationToken(String emailVerificationToken) {
+        this.emailVerificationToken = emailVerificationToken;
+    }
+
+    public LocalDateTime getEmailVerificationTokenExpiry() {
+        return emailVerificationTokenExpiry;
+    }
+
+    public void setEmailVerificationTokenExpiry(LocalDateTime emailVerificationTokenExpiry) {
+        this.emailVerificationTokenExpiry = emailVerificationTokenExpiry;
+    }
+    public String getProvider() {
+        return provider;
+    }
+
+    public void setProvider(String provider) {
+        this.provider = provider;
+    }
+
+    public String getProviderId() {
+        return providerId;
+    }
+
+    public void setProviderId(String providerId) {
+        this.providerId = providerId;
+    }
+    // ✅ Convert role to GrantedAuthority
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        if (role != null) {
+            return Collections.singletonList(new SimpleGrantedAuthority(role));
+        }
+        return Collections.emptyList();
+    }
+
+    //✅ UserDetails methods
+    @Override
+    public boolean isAccountNonExpired() {
+        return true; // Account never expires
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true; // Account is never locked
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true; // Credentials never expire
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return active; // Account is enabled if active is true
     }
     // Override toString() for better logging
     @Override

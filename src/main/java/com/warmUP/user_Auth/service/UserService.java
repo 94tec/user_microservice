@@ -3,6 +3,9 @@ package com.warmUP.user_Auth.service;
 import com.warmUP.user_Auth.exception.ResourceNotFoundException;
 import com.warmUP.user_Auth.model.User;
 import com.warmUP.user_Auth.repository.UserRepository;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -12,7 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
-public class UserService {
+public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -22,7 +25,18 @@ public class UserService {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
     }
+    // ✅ Load user by username (required by UserDetailsService)
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
 
+        return new org.springframework.security.core.userdetails.User(
+                user.getUsername(), // Username
+                user.getPassword(), // Password (already encoded)
+                user.getAuthorities() // Roles/authorities
+        );
+    }
     // ✅ Create a new user with an encoded password
     public User createUser(User user) {
         user.setPassword(passwordEncoder.encode(user.getPassword())); // Encrypt password
@@ -114,4 +128,41 @@ public class UserService {
         user.setPasswordResetTokenExpiry(null);
         userRepository.save(user);
     }
+    // ✅ Register user with social login
+    public User registerWithSocialLogin(String email, String provider, String providerId) {
+        User user = new User();
+        user.setEmail(email);
+        user.setProvider(provider);
+        user.setProviderId(providerId);
+        user.setEmailVerified(true); // Social logins are typically verified
+        return userRepository.save(user);
+    }
+
+    // ✅ Send email verification link
+    public void sendEmailVerificationLink(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+
+        String token = UUID.randomUUID().toString();
+        user.setEmailVerificationToken(token);
+        user.setEmailVerificationTokenExpiry(LocalDateTime.now().plusHours(1));
+        userRepository.save(user);
+
+        // Send email with the verification link (implement email sending logic)
+    }
+
+    // ✅ Verify email using token
+    public void verifyEmail(String token) {
+        User user = userRepository.findByEmailVerificationToken(token)
+                .orElseThrow(() -> new ResourceNotFoundException("Invalid token"));
+
+        if (user.getEmailVerificationTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Token expired");
+        }
+        user.setEmailVerified(true);
+        user.setEmailVerificationToken(null);
+        user.setEmailVerificationTokenExpiry(null);
+        userRepository.save(user);
+    }
+
 }
