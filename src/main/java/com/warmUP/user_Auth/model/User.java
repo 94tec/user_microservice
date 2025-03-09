@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 public class User implements UserDetails {
@@ -251,4 +252,5 @@ public class User implements UserDetails {
                 ", passwordResetTokenExpiry=" + passwordResetTokenExpiry +
                 '}';
     }
+
 }

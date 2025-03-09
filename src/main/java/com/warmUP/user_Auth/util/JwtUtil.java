@@ -25,13 +25,34 @@ public class JwtUtil {
         this.secretKey = Keys.secretKeyFor(io.jsonwebtoken.SignatureAlgorithm.HS256);
     }
 
-    // Generate JWT token for a user
+    /**
+     * Generates a JWT token for a user.
+     *
+     * @param userDetails The UserDetails object containing user information.
+     * @return The generated JWT token.
+     */
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         return createToken(claims, userDetails.getUsername());
     }
+    /**
+     * Generates a JWT token for email verification.
+     *
+     * @param email The email address to include in the token.
+     * @return The generated JWT token.
+     */
+    public String generateToken(String email) {
+        Map<String, Object> claims = new HashMap<>();
+        return createToken(claims, email);
+    }
 
-    // Create JWT token with claims and subject
+    /**
+     * Creates a JWT token with claims and subject.
+     *
+     * @param claims  The claims to include in the token.
+     * @param subject The subject (e.g., username or email) to include in the token.
+     * @return The generated JWT token.
+     */
     private String createToken(Map<String, Object> claims, String subject) {
         return Jwts.builder()
                 .setClaims(claims) // Set custom claims (if any)

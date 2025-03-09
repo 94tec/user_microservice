@@ -4,4 +4,9 @@
 *.iml
 *.ipr
 
+# Ignore sensitive configuration files
 .db-credentials.properties
+.env
+
+# Ignore specific Java source file
+user_Auth/src/main/java/com/warmUP/user_Auth/config/EnvVarChecker.java

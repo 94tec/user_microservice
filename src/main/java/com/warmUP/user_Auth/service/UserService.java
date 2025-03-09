@@ -1,10 +1,15 @@
 package com.warmUP.user_Auth.service;
 
+import com.warmUP.user_Auth.dto.UserRegistrationRequest;
+import com.warmUP.user_Auth.dto.UserResponse;
 import com.warmUP.user_Auth.exception.ResourceNotFoundException;
 import com.warmUP.user_Auth.model.User;
 import com.warmUP.user_Auth.repository.UserRepository;
 import com.warmUP.user_Auth.util.JwtUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -17,6 +22,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -26,13 +32,16 @@ public class UserService implements UserDetailsService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
+    private final EmailService emailService;
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     // ✅ Constructor-based dependency injection (Best Practice)
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, @Lazy AuthenticationManager authenticationManager, JwtUtil jwtUtil) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, @Lazy AuthenticationManager authenticationManager, JwtUtil jwtUtil, EmailService emailService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
+        this.emailService = emailService;
     }
     // ✅ Load user by username (required by UserDetailsService)
     @Override
@@ -47,9 +56,55 @@ public class UserService implements UserDetailsService {
         );
     }
     // ✅ Create a new user with an encoded password
-    public User createUser(User user) {
-        user.setPassword(passwordEncoder.encode(user.getPassword())); // Encrypt password
-        return userRepository.save(user);
+    public UserResponse createUser(UserRegistrationRequest userRequest) {
+        // Validate input
+        if (userRequest.getUsername() == null || userRequest.getUsername().isEmpty()) {
+            throw new IllegalArgumentException("Username is required");
+        }
+        if (userRequest.getEmail() == null || userRequest.getEmail().isEmpty()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+        if (userRequest.getPassword() == null || userRequest.getPassword().isEmpty()) {
+            throw new IllegalArgumentException("Password is required");
+        }
+
+        // Check if username or email already exists
+        if (userRepository.existsByUsername(userRequest.getUsername())) {
+            throw new DuplicateKeyException("Username already exists");
+        }
+        if (userRepository.existsByEmail(userRequest.getEmail())) {
+            throw new DuplicateKeyException("Email already exists");
+        }
+
+        // Create a new user
+        User user = new User();
+        user.setUsername(userRequest.getUsername());
+        user.setEmail(userRequest.getEmail());
+
+        // Encode the password before saving
+        user.setPassword(passwordEncoder.encode(userRequest.getPassword()));
+
+        user.setEmailVerified(false); // Email verification required
+        user.setRole("ROLE_USER"); // Assign default role
+
+        // Save the user to the database
+        User savedUser = userRepository.save(user);
+
+        // Send email verification link
+        UserDetails userDetails = loadUserByUsername(savedUser.getUsername());
+        String verificationToken = jwtUtil.generateToken(userDetails);
+        emailService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
+
+        // Log the registration event
+        logger.info("User registered successfully: {}", savedUser.getUsername());
+
+        // Return the user response
+        return new UserResponse(
+                savedUser.getId(),
+                savedUser.getUsername(),
+                savedUser.getEmail(),
+                savedUser.isEmailVerified()
+        );
     }
 
     // ✅ Login a user and generate a JWT token
@@ -165,29 +220,44 @@ public class UserService implements UserDetailsService {
 
     // ✅ Send email verification link
     public void sendEmailVerificationLink(String email) {
+        // Find the user by email
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
 
-        String token = UUID.randomUUID().toString();
-        user.setEmailVerificationToken(token);
-        user.setEmailVerificationTokenExpiry(LocalDateTime.now().plusHours(1));
+        // Generate a secure JWT token for email verification
+        String verificationToken = jwtUtil.generateToken(user.getEmail());
+
+        // Set the verification token and expiry in the user entity
+        user.setEmailVerificationToken(verificationToken);
+        user.setEmailVerificationTokenExpiry(LocalDateTime.now().plusHours(1)); // Token expires in 1 hour
         userRepository.save(user);
 
-        // Send email with the verification link (implement email sending logic)
+        // Send the verification email
+        emailService.sendVerificationEmail(user.getEmail(), verificationToken);
+
+        // Log the event
+        logger.info("Email verification link sent to: {}", email);
     }
 
-    // ✅ Verify email using token
-    public void verifyEmail(String token) {
-        User user = userRepository.findByEmailVerificationToken(token)
-                .orElseThrow(() -> new ResourceNotFoundException("Invalid token"));
+    public boolean verifyEmail(String token) {
+        try {
+            // Extract the username from the token
+            String username = jwtUtil.extractUsername(token);
 
-        if (user.getEmailVerificationTokenExpiry().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("Token expired");
+            // Find the user by username
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // Mark the email as verified
+            user.setEmailVerified(true);
+            userRepository.save(user);
+
+            return true;
+        } catch (Exception e) {
+            // Log the error
+            System.err.println("Email verification failed: " + e.getMessage());
+            return false;
         }
-        user.setEmailVerified(true);
-        user.setEmailVerificationToken(null);
-        user.setEmailVerificationTokenExpiry(null);
-        userRepository.save(user);
     }
 
 }
