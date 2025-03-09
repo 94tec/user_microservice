@@ -7,6 +7,8 @@ import com.warmUP.user_Auth.model.User;
 import com.warmUP.user_Auth.service.UserService;
 import com.warmUP.user_Auth.util.JwtUtil;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
@@ -27,6 +29,7 @@ public class UserController {
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
+    private static final Logger log = LoggerFactory.getLogger(UserController.class);
 
     // ✅ Constructor-based dependency injection (Best Practice)
     @Autowired
@@ -40,11 +43,15 @@ public class UserController {
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody UserRegistrationRequest userRequest) {
         try {
+            log.info("Attempting to register user: {}", userRequest.getEmail()); // ✅ Logging input
             UserResponse userResponse = userService.createUser(userRequest);
+            log.info("User registered successfully: {}", userResponse.getId()); // ✅ Logging success
             return ResponseEntity.status(HttpStatus.CREATED).body(userResponse);
         } catch (DuplicateKeyException e) {
+            log.warn("Duplicate user found: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Username or email already exists"));
         } catch (Exception e) {
+            log.error("Unexpected error during registration", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "An error occurred during registration"));
         }
     }

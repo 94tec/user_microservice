@@ -18,6 +18,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -56,8 +57,54 @@ public class UserService implements UserDetailsService {
         );
     }
     // ✅ Create a new user with an encoded password
+    @Transactional
     public UserResponse createUser(UserRegistrationRequest userRequest) {
-        // Validate input
+        try {
+            // ✅ Validate input
+            validateUserRequest(userRequest);
+
+            // ✅ Check if username or email already exists
+            checkDuplicateUser(userRequest);
+
+            // ✅ Create a new user
+            User user = new User();
+            user.setUsername(userRequest.getUsername());
+            user.setEmail(userRequest.getEmail());
+            user.setPassword(passwordEncoder.encode(userRequest.getPassword())); // Hash password
+            user.setEmailVerified(false); // Email verification required
+            user.setRole("ROLE_USER"); // Assign default role
+            user.setCreatedAt(LocalDateTime.now());
+            user.setUpdatedAt(LocalDateTime.now());
+
+            // ✅ Save user to the database
+            User savedUser = userRepository.save(user);
+
+            // ✅ Send email verification link
+            String verificationToken = generateEmailVerificationToken(savedUser);
+            emailService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
+
+            // ✅ Log the registration event
+            logger.info("User registered successfully: {}", savedUser.getUsername());
+
+            // ✅ Return the user response
+            return new UserResponse(
+                    savedUser.getId(),
+                    savedUser.getUsername(),
+                    savedUser.getEmail(),
+                    savedUser.isEmailVerified()
+            );
+
+        } catch (DuplicateKeyException e) {
+            logger.warn("User registration failed: Duplicate username or email - {}", e.getMessage());
+            throw e; // Re-throw so it can be handled in the controller
+
+        } catch (Exception e) {
+            logger.error("Unexpected error occurred during user registration", e);
+            throw new RuntimeException("An error occurred during registration. Please try again.");
+        }
+    }
+
+    private void validateUserRequest(UserRegistrationRequest userRequest) {
         if (userRequest.getUsername() == null || userRequest.getUsername().isEmpty()) {
             throw new IllegalArgumentException("Username is required");
         }
@@ -67,46 +114,20 @@ public class UserService implements UserDetailsService {
         if (userRequest.getPassword() == null || userRequest.getPassword().isEmpty()) {
             throw new IllegalArgumentException("Password is required");
         }
+    }
 
-        // Check if username or email already exists
+    private void checkDuplicateUser(UserRegistrationRequest userRequest) {
         if (userRepository.existsByUsername(userRequest.getUsername())) {
             throw new DuplicateKeyException("Username already exists");
         }
         if (userRepository.existsByEmail(userRequest.getEmail())) {
             throw new DuplicateKeyException("Email already exists");
         }
-
-        // Create a new user
-        User user = new User();
-        user.setUsername(userRequest.getUsername());
-        user.setEmail(userRequest.getEmail());
-
-        // Encode the password before saving
-        user.setPassword(passwordEncoder.encode(userRequest.getPassword()));
-
-        user.setEmailVerified(false); // Email verification required
-        user.setRole("ROLE_USER"); // Assign default role
-
-        // Save the user to the database
-        User savedUser = userRepository.save(user);
-
-        // Send email verification link
-        UserDetails userDetails = loadUserByUsername(savedUser.getUsername());
-        String verificationToken = jwtUtil.generateToken(userDetails);
-        emailService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
-
-        // Log the registration event
-        logger.info("User registered successfully: {}", savedUser.getUsername());
-
-        // Return the user response
-        return new UserResponse(
-                savedUser.getId(),
-                savedUser.getUsername(),
-                savedUser.getEmail(),
-                savedUser.isEmailVerified()
-        );
     }
-
+    private String generateEmailVerificationToken(User user) {
+        UserDetails userDetails = loadUserByUsername(user.getUsername());
+        return jwtUtil.generateToken(userDetails);
+    }
     // ✅ Login a user and generate a JWT token
     public String loginUser(String username, String password) {
         try {
