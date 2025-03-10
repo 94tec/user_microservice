@@ -1,11 +1,13 @@
 package com.warmUP.user_Auth.service;
 
-import com.warmUP.user_Auth.dto.UserRegistrationRequest;
+import com.warmUP.user_Auth.dto.UserRequest;
 import com.warmUP.user_Auth.dto.UserResponse;
 import com.warmUP.user_Auth.exception.ResourceNotFoundException;
+import com.warmUP.user_Auth.exception.UserNotFoundException;
 import com.warmUP.user_Auth.model.User;
 import com.warmUP.user_Auth.repository.UserRepository;
 import com.warmUP.user_Auth.util.JwtUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
@@ -23,10 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
@@ -58,7 +60,7 @@ public class UserService implements UserDetailsService {
     }
     // ✅ Create a new user with an encoded password
     @Transactional
-    public UserResponse createUser(UserRegistrationRequest userRequest) {
+    public UserResponse createUser(UserRequest userRequest) {
         try {
             // ✅ Validate input
             validateUserRequest(userRequest);
@@ -72,12 +74,30 @@ public class UserService implements UserDetailsService {
             user.setEmail(userRequest.getEmail());
             user.setPassword(passwordEncoder.encode(userRequest.getPassword())); // Hash password
             user.setEmailVerified(false); // Email verification required
-            user.setRole("ROLE_USER"); // Assign default role
-            user.setCreatedAt(LocalDateTime.now());
-            user.setUpdatedAt(LocalDateTime.now());
+            user.setRole(userRequest.getRole()); // Assign default role
+            user.setFirstName(userRequest.getFirstName()); // Set first name from request
+            user.setLastName(userRequest.getLastName()); // Set last name from request
+            user.setCreatedAt(LocalDateTime.now()); // Set creation timestamp
+            user.setUpdatedAt(LocalDateTime.now()); // Set update timestamp
+            user.setActive(false); // Set account as inactive by default
+
+            // Optional: Handle provider and providerId if applicable
+            user.setProvider(null); // Set to null or specify if using social login
+            user.setProviderId(null); // Set to null or specify if using social login
+
+            // Save the user to the database
+            userRepository.save(user);
+
 
             // ✅ Save user to the database
             User savedUser = userRepository.save(user);
+
+            // ✅ Assign role based on isAdmin flag
+            if (userRequest.getRole() != null && (userRequest.getRole().equals("ROLE_ADMIN") || userRequest.getRole().equals("ROLE_USER"))) {
+                user.setRole(userRequest.getRole());
+            } else {
+                user.setRole("ROLE_USER"); // Default role
+            }
 
             // ✅ Send email verification link
             String verificationToken = generateEmailVerificationToken(savedUser);
@@ -91,6 +111,7 @@ public class UserService implements UserDetailsService {
                     savedUser.getId(),
                     savedUser.getUsername(),
                     savedUser.getEmail(),
+                    savedUser.getRole(),
                     savedUser.isEmailVerified()
             );
 
@@ -104,7 +125,7 @@ public class UserService implements UserDetailsService {
         }
     }
 
-    private void validateUserRequest(UserRegistrationRequest userRequest) {
+    private void validateUserRequest(UserRequest userRequest) {
         if (userRequest.getUsername() == null || userRequest.getUsername().isEmpty()) {
             throw new IllegalArgumentException("Username is required");
         }
@@ -116,7 +137,7 @@ public class UserService implements UserDetailsService {
         }
     }
 
-    private void checkDuplicateUser(UserRegistrationRequest userRequest) {
+    private void checkDuplicateUser(UserRequest userRequest) {
         if (userRepository.existsByUsername(userRequest.getUsername())) {
             throw new DuplicateKeyException("Username already exists");
         }
@@ -131,19 +152,48 @@ public class UserService implements UserDetailsService {
     // ✅ Login a user and generate a JWT token
     public String loginUser(String username, String password) {
         try {
-            // Authenticate the user
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(username, password));
+            // Check if user exists in DB and password matches
+            if (!isUserAvailable(username, password)) {
+                log.warn("Login attempt failed - user not found or password incorrect: {}", username);
+                throw new BadCredentialsException("Invalid username or password");
+            }
 
-            // Load user details
-            final UserDetails userDetails = loadUserByUsername(username);
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
 
-            // Generate a JWT token
+            UserDetails userDetails = loadUserByUsername(username); // Load user details once
+            User user = findUserByUsername(username); //Retrieve the full user object
+
+            // Check if the user's email is verified
+            checkUserVerification(user);
+
             return jwtUtil.generateToken(userDetails);
         } catch (BadCredentialsException e) {
+            log.warn("Login attempt failed for user: {}", username, e);
             throw new BadCredentialsException("Invalid username or password");
         }
+
     }
+    public boolean isUserAvailable(String username, String password) {
+        // Find user in DB
+        User user = userRepository.findByUsername(username).orElse(null);
+
+        // If user not found, return false
+        if (user == null) {
+            return false;
+        }
+
+        // Verify the password
+        return passwordEncoder.matches(password, user.getPassword());
+    }
+
+    public void checkUserVerification(User user) {
+        if (!user.isEmailVerified()) {
+            String message = String.format("Login attempt failed for user: %s - Email not verified", user.getUsername());
+            log.warn(message);
+            throw new IllegalStateException("Your email address has not been verified. Please check your inbox for a verification email.");
+        }
+    }
+
     // ✅ Get all users
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -189,11 +239,22 @@ public class UserService implements UserDetailsService {
             user.setRole(userDetails.getRole());
         }
     }
+    public User findUserByUsername(String username) {
+        Optional<User> userOptional = userRepository.findByUsername(username);
 
+        if (userOptional.isPresent()) {
+            return userOptional.get();
+        } else {
+            log.warn("User not found with username: {}", username);
+            throw new UserNotFoundException("User not found with username: " + username);
+        }
+    }
     // ✅ Delete a user by ID
     public void deleteUser(Long id) {
-        User user = getUserById(id); // Throws ResourceNotFoundException if user not found
-        userRepository.delete(user);
+        if (!userRepository.existsById(id)) {
+            throw new UserNotFoundException("User not found with id: " + id);
+        }
+        userRepository.deleteById(id);
     }
 
     // ✅ Verify a user's email
@@ -271,6 +332,7 @@ public class UserService implements UserDetailsService {
 
             // Mark the email as verified
             user.setEmailVerified(true);
+            user.setActive(true);
             userRepository.save(user);
 
             return true;

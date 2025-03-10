@@ -35,6 +35,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/users/register").permitAll() // Allow unauthenticated access to POST /api/users/register
                         .requestMatchers("/api/users/login").permitAll() // Allow unauthenticated access to POST /api/users/login
+                        .requestMatchers("/api/users/verify-email").permitAll() // Allow unauthenticated access to verify email
                         .requestMatchers("/api/users").authenticated() // Secure GET /api/users (retrieve all users)
                         .requestMatchers("/api/users/**").authenticated() // Secure all other user endpoints
                         .requestMatchers("/api/admin/**").hasRole("ADMIN") // Admin-only endpoints

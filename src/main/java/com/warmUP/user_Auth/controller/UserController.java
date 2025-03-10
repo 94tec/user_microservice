@@ -1,6 +1,8 @@
 package com.warmUP.user_Auth.controller;
 
-import com.warmUP.user_Auth.dto.UserRegistrationRequest;
+import com.warmUP.user_Auth.dto.LoginRequestDto;
+import com.warmUP.user_Auth.dto.LoginResponseDto;
+import com.warmUP.user_Auth.dto.UserRequest;
 import com.warmUP.user_Auth.dto.UserResponse;
 import com.warmUP.user_Auth.exception.ResourceNotFoundException;
 import com.warmUP.user_Auth.model.User;
@@ -14,11 +16,9 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,7 +41,7 @@ public class UserController {
 
     // ✅ POST: Register a new user
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@Valid @RequestBody UserRegistrationRequest userRequest) {
+    public ResponseEntity<?> registerUser(@Valid @RequestBody UserRequest userRequest) {
         try {
             log.info("Attempting to register user: {}", userRequest.getEmail()); // ✅ Logging input
             UserResponse userResponse = userService.createUser(userRequest);
@@ -58,16 +58,20 @@ public class UserController {
 
     // ✅ POST: Login and generate JWT token
     @PostMapping("/login")
-    public ResponseEntity<Map<String, String>> loginUser(@RequestBody User user) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(user.getUsername(), user.getPassword()));
+    public ResponseEntity<?> loginUser(@RequestBody LoginRequestDto loginRequestDto) {
+        try {
+            // ✅ Use loginUser service method
+            String jwt = userService.loginUser(loginRequestDto.getUsername(), loginRequestDto.getPassword());
 
-        final UserDetails userDetails = userService.loadUserByUsername(user.getUsername());
-        final String jwt = jwtUtil.generateToken(userDetails);
+            LoginResponseDto response = new LoginResponseDto();
+            response.setToken(jwt);
+            return ResponseEntity.ok(response);
 
-        Map<String, String> response = new HashMap<>();
-        response.put("token", jwt);
-        return ResponseEntity.ok(response);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Email not verified");
+        } catch (BadCredentialsException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
+        }
     }
 
     // ✅ POST: Logout (invalidate token)
@@ -101,7 +105,7 @@ public class UserController {
     // ✅ DELETE: Delete a user by ID
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        userService.deleteUser(id); // Throws ResourceNotFoundException if user not found
+        userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
 
@@ -166,4 +170,5 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid or expired token.");
         }
     }
+
 }
