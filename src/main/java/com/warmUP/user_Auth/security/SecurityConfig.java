@@ -2,6 +2,7 @@ package com.warmUP.user_Auth.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -36,7 +37,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/register").permitAll() // Allow unauthenticated access to POST /api/users/register
                         .requestMatchers("/api/users/login").permitAll() // Allow unauthenticated access to POST /api/users/login
                         .requestMatchers("/api/users/verify-email").permitAll() // Allow unauthenticated access to verify email
-                        .requestMatchers("/api/users").authenticated() // Secure GET /api/users (retrieve all users)
+                        .requestMatchers("/api/users").authenticated()
                         .requestMatchers("/api/users/**").authenticated() // Secure all other user endpoints
                         .requestMatchers("/api/admin/**").hasRole("ADMIN") // Admin-only endpoints
                         .anyRequest().authenticated() // Secure all other endpoints

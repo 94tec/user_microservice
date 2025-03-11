@@ -1,4 +1,7 @@
 com/warmUP/user_Auth/dto/UserRequest.class
+com/warmUP/user_Auth/exception/PasswordResetException.class
+com/warmUP/user_Auth/exception/GlobalExceptionHandler.class
 com/warmUP/user_Auth/dto/LoginResponseDto.class
+com/warmUP/user_Auth/dto/PasswordResetDTO.class
 com/warmUP/user_Auth/dto/LoginRequestDto.class
 com/warmUP/user_Auth/exception/UserNotFoundException.class

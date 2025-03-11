@@ -1,11 +1,11 @@
 package com.warmUP.user_Auth.controller;
 
-import com.warmUP.user_Auth.dto.LoginRequestDto;
-import com.warmUP.user_Auth.dto.LoginResponseDto;
-import com.warmUP.user_Auth.dto.UserRequest;
-import com.warmUP.user_Auth.dto.UserResponse;
+import com.warmUP.user_Auth.dto.*;
+import com.warmUP.user_Auth.exception.PasswordResetException;
 import com.warmUP.user_Auth.exception.ResourceNotFoundException;
+import com.warmUP.user_Auth.exception.UserNotFoundException;
 import com.warmUP.user_Auth.model.User;
+import com.warmUP.user_Auth.service.EmailService;
 import com.warmUP.user_Auth.service.UserService;
 import com.warmUP.user_Auth.util.JwtUtil;
 import jakarta.validation.Valid;
@@ -17,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.oauth2.core.oidc.StandardClaimAccessor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,14 +28,16 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+    private final EmailService emailService;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private static final Logger log = LoggerFactory.getLogger(UserController.class);
 
     // ✅ Constructor-based dependency injection (Best Practice)
     @Autowired
-    public UserController(UserService userService, AuthenticationManager authenticationManager, JwtUtil jwtUtil) {
+    public UserController(UserService userService,EmailService emailService, AuthenticationManager authenticationManager, JwtUtil jwtUtil) {
         this.userService = userService;
+        this.emailService = emailService;
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
     }
@@ -104,9 +107,16 @@ public class UserController {
 
     // ✅ DELETE: Delete a user by ID
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        userService.deleteUser(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<String> deleteUser(@PathVariable Long id) {
+        try {
+            userService.deleteUser(id);
+            return ResponseEntity.noContent().build();
+        } catch (UserNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+
     }
 
     // ✅ POST: Verify a user's email
@@ -116,13 +126,38 @@ public class UserController {
         return ResponseEntity.ok().build();
     }
 
-    // ✅ POST: Reset a user's password
+    // ✅ POST: Generate password reset token
+    @PostMapping("/generate-password-reset-token")
+    public ResponseEntity<?> generatePasswordResetToken(@RequestParam String email) {
+        try {
+            userService.generatePasswordResetToken(email);
+            return ResponseEntity.ok(Map.of("message", "Password reset token generated successfully"));
+        } catch (ResourceNotFoundException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", ex.getMessage(), "status", HttpStatus.NOT_FOUND.toString()));
+        } catch (PasswordResetException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", ex.getMessage(), "status", HttpStatus.BAD_REQUEST.toString()));
+        }
+    }
+
     @PostMapping("/reset-password")
-    public ResponseEntity<Void> resetPassword(
-            @RequestParam String token,
-            @RequestParam String newPassword) {
-        userService.resetPassword(token, newPassword); // Throws ResourceNotFoundException if token is invalid or expired
-        return ResponseEntity.ok().build();
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody PasswordResetDTO passwordResetDTO) {
+        try {
+            // Reset the password and get the user object
+            User user = userService.resetPassword(passwordResetDTO.getToken(), passwordResetDTO.getNewPassword());
+
+            // Send a confirmation email
+            emailService.sendEmail(user.getEmail(), "Password Reset Confirmation", "Your password has been reset successfully.");
+
+            return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
+        } catch (ResourceNotFoundException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", ex.getMessage(), "status", HttpStatus.NOT_FOUND.toString()));
+        } catch (PasswordResetException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", ex.getMessage(), "status", HttpStatus.BAD_REQUEST.toString()));
+        }
     }
     // ✅ POST: Register with social login
     @PostMapping("/register/social")

@@ -2,6 +2,7 @@ package com.warmUP.user_Auth.service;
 
 import com.warmUP.user_Auth.dto.UserRequest;
 import com.warmUP.user_Auth.dto.UserResponse;
+import com.warmUP.user_Auth.exception.PasswordResetException;
 import com.warmUP.user_Auth.exception.ResourceNotFoundException;
 import com.warmUP.user_Auth.exception.UserNotFoundException;
 import com.warmUP.user_Auth.model.User;
@@ -252,9 +253,16 @@ public class UserService implements UserDetailsService {
     // ✅ Delete a user by ID
     public void deleteUser(Long id) {
         if (!userRepository.existsById(id)) {
+            log.warn("Attempted to delete non-existent user with id: {}", id);
             throw new UserNotFoundException("User not found with id: " + id);
         }
-        userRepository.deleteById(id);
+        try {
+            userRepository.deleteById(id);
+            log.info("User with id: {} deleted successfully", id);
+        } catch (Exception e) {
+            log.error("Error deleting user with id: {}", id, e);
+            throw new RuntimeException("Failed to delete user: " + e.getMessage()); // Or a custom exception
+        }
     }
 
     // ✅ Verify a user's email
@@ -266,29 +274,50 @@ public class UserService implements UserDetailsService {
 
     // ✅ Generate password reset token
     public void generatePasswordResetToken(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+        try {
+            // Find the user by email
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
 
-        String token = UUID.randomUUID().toString();
-        user.setPasswordResetToken(token);
-        user.setPasswordResetTokenExpiry(LocalDateTime.now().plusHours(1));
-        userRepository.save(user);
+            // Generate a password reset token
+            String token = UUID.randomUUID().toString();
+            user.setPasswordResetToken(token);
+            user.setPasswordResetTokenExpiry(LocalDateTime.now().plusHours(1)); // Token expires in 1 hour
+
+            // Save the updated user
+            userRepository.save(user);
+        } catch (ResourceNotFoundException ex) {
+            throw ex; // Re-throw ResourceNotFoundException
+        } catch (Exception ex) {
+            throw new PasswordResetException("Failed to generate password reset token: " + ex.getMessage());
+        }
     }
 
     // ✅ Reset password securely
-    public void resetPassword(String token, String newPassword) {
-        User user = userRepository.findByPasswordResetToken(token)
-                .orElseThrow(() -> new ResourceNotFoundException("Invalid token"));
+    public User resetPassword(String token, String newPassword) {
+        try {
+            logger.info("Attempting to reset password for token: {}", token);
+            User user = userRepository.findByPasswordResetToken(token)
+                    .orElseThrow(() -> new ResourceNotFoundException("Invalid token"));
 
-        if (user.getPasswordResetTokenExpiry().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("Token expired");
+            if (user.getPasswordResetTokenExpiry().isBefore(LocalDateTime.now())) {
+                logger.warn("Token expired for user: {}", user.getEmail());
+                throw new PasswordResetException("Token expired");
+            }
+
+            user.setPassword(passwordEncoder.encode(newPassword));
+            user.setPasswordResetToken(null);
+            user.setPasswordResetTokenExpiry(null);
+            userRepository.save(user);
+            logger.info("Password reset successfully for user: {}", user.getEmail());
+        } catch (ResourceNotFoundException | PasswordResetException ex) {
+            logger.error("Error resetting password: {}", ex.getMessage());
+            throw ex;
+        } catch (Exception ex) {
+            logger.error("Unexpected error resetting password: {}", ex.getMessage());
+            throw new PasswordResetException("Failed to reset password: " + ex.getMessage());
         }
-
-        // 🔹 Encrypt the new password before saving
-        user.setPassword(passwordEncoder.encode(newPassword));
-        user.setPasswordResetToken(null);
-        user.setPasswordResetTokenExpiry(null);
-        userRepository.save(user);
+        return null;
     }
     // ✅ Register user with social login
     public User registerWithSocialLogin(String email, String provider, String providerId) {
