@@ -9,15 +9,16 @@ import com.warmUP.user_Auth.service.EmailService;
 import com.warmUP.user_Auth.service.UserService;
 import com.warmUP.user_Auth.util.JwtUtil;
 import jakarta.validation.Valid;
+import org.hibernate.service.spi.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.oauth2.core.oidc.StandardClaimAccessor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -31,11 +32,15 @@ public class UserController {
     private final EmailService emailService;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
-    private static final Logger log = LoggerFactory.getLogger(UserController.class);
+
+    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
     // ✅ Constructor-based dependency injection (Best Practice)
     @Autowired
-    public UserController(UserService userService,EmailService emailService, AuthenticationManager authenticationManager, JwtUtil jwtUtil) {
+    public UserController(
+            UserService userService,EmailService emailService, AuthenticationManager authenticationManager,
+            JwtUtil jwtUtil
+    ) {
         this.userService = userService;
         this.emailService = emailService;
         this.authenticationManager = authenticationManager;
@@ -46,15 +51,15 @@ public class UserController {
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody UserRequest userRequest) {
         try {
-            log.info("Attempting to register user: {}", userRequest.getEmail()); // ✅ Logging input
+            logger.info("Attempting to register user: {}", userRequest.getEmail()); // ✅ Logging input
             UserResponse userResponse = userService.createUser(userRequest);
-            log.info("User registered successfully: {}", userResponse.getId()); // ✅ Logging success
+            logger.info("User registered successfully: {}", userResponse.getId()); // ✅ Logging success
             return ResponseEntity.status(HttpStatus.CREATED).body(userResponse);
         } catch (DuplicateKeyException e) {
-            log.warn("Duplicate user found: {}", e.getMessage());
+            logger.warn("Duplicate user found: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Username or email already exists"));
         } catch (Exception e) {
-            log.error("Unexpected error during registration", e);
+            logger.error("Unexpected error during registration", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "An error occurred during registration"));
         }
     }
@@ -77,18 +82,61 @@ public class UserController {
         }
     }
 
-    // ✅ POST: Logout (invalidate token)
     @PostMapping("/logout")
-    public ResponseEntity<Void> logoutUser() {
-        // In a stateless system, logout is handled client-side by discarding the token
-        return ResponseEntity.ok().build();
+    public ResponseEntity<?> logoutUser() {
+        try {
+            // Call the logout service
+            userService.logoutUser();
+
+            // Return success response
+            return ResponseEntity.ok("User logged out successfully.");
+
+        } catch (ResourceNotFoundException e) {
+            // Handle case where no user is authenticated
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+
+        } catch (ServiceException e) {
+            // Handle service-level errors
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+
+        } catch (Exception e) {
+            // Handle unexpected errors
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred during logout.");
+        }
     }
 
-    // ✅ GET: Retrieve all users
+    // ✅ Get (Access list users)
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
-        List<User> users = userService.getAllUsers();
-        return ResponseEntity.ok(users);
+    public ResponseEntity<?> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            // Fetch users with pagination
+            List<User> users = userService.getAllUsers(page, size);
+
+            // Return users with HTTP 200 OK
+            return ResponseEntity.ok(users);
+
+        } catch (ResourceNotFoundException e) {
+            // Handle empty database case (HTTP 204 No Content)
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).body(e.getMessage());
+
+        } catch (AccessDeniedException e) {
+            // Handle permission issues (HTTP 403 Forbidden)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+
+        } catch (IllegalArgumentException e) {
+            // Handle invalid input (HTTP 400 Bad Request)
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+
+        } catch (ServiceException e) {
+            // Handle database or service errors (HTTP 500 Internal Server Error)
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+
+        } catch (Exception e) {
+            // Handle any other unexpected errors (HTTP 500 Internal Server Error)
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred.");
+        }
     }
 
     // ✅ GET: Retrieve a user by ID
@@ -144,19 +192,26 @@ public class UserController {
     @PostMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@Valid @RequestBody PasswordResetDTO passwordResetDTO) {
         try {
-            // Reset the password and get the user object
+            // Reset the password and get the updated user object
             User user = userService.resetPassword(passwordResetDTO.getToken(), passwordResetDTO.getNewPassword());
 
             // Send a confirmation email
             emailService.sendEmail(user.getEmail(), "Password Reset Confirmation", "Your password has been reset successfully.");
 
+            // Return success response
             return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
         } catch (ResourceNotFoundException ex) {
+            logger.error("Resource not found: {}", ex.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", ex.getMessage(), "status", HttpStatus.NOT_FOUND.toString()));
         } catch (PasswordResetException ex) {
+            logger.error("Password reset error: {}", ex.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", ex.getMessage(), "status", HttpStatus.BAD_REQUEST.toString()));
+        } catch (Exception ex) {
+            logger.error("Unexpected error: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "An unexpected error occurred: " + ex.getMessage(), "status", HttpStatus.INTERNAL_SERVER_ERROR.toString()));
         }
     }
     // ✅ POST: Register with social login

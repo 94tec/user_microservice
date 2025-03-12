@@ -9,19 +9,29 @@ import com.warmUP.user_Auth.model.User;
 import com.warmUP.user_Auth.repository.UserRepository;
 import com.warmUP.user_Auth.util.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.service.spi.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -155,7 +165,7 @@ public class UserService implements UserDetailsService {
         try {
             // Check if user exists in DB and password matches
             if (!isUserAvailable(username, password)) {
-                log.warn("Login attempt failed - user not found or password incorrect: {}", username);
+                logger.warn("Login attempt failed - user not found or password incorrect: {}", username);
                 throw new BadCredentialsException("Invalid username or password");
             }
 
@@ -169,7 +179,7 @@ public class UserService implements UserDetailsService {
 
             return jwtUtil.generateToken(userDetails);
         } catch (BadCredentialsException e) {
-            log.warn("Login attempt failed for user: {}", username, e);
+            logger.warn("Login attempt failed for user: {}", username, e);
             throw new BadCredentialsException("Invalid username or password");
         }
 
@@ -196,8 +206,48 @@ public class UserService implements UserDetailsService {
     }
 
     // ✅ Get all users
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public List<User> getAllUsers(int page, int size) {
+        logger.info("Fetching users with page={} and size={}", page, size);
+        try {
+            // 5. Pagination to handle large datasets
+            Pageable pageable = PageRequest.of(page, size);
+            Page<User> userPage = userRepository.findAll(pageable);
+
+            // 2. Check for empty database
+            if (userPage.isEmpty()) {
+                logger.warn("No users found.");
+                throw new ResourceNotFoundException("No users found.");
+            }
+
+            // 7. Use DTOs to avoid serialization issues (not shown here, but recommended)
+            List<User> users = userPage.getContent();
+
+            return users;
+
+        } catch (DataAccessException e) {
+            // 1. Database connection issues
+            logger.error("Error fetching users from the database.\", e");
+            throw new ServiceException("Error fetching users from the database.", e);
+
+        } catch (AccessDeniedException e) {
+            // 4. Permission or authorization issues
+            logger.error("You do not have permission to access this resource.", e);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to access this resource.", e);
+
+        } catch (IllegalArgumentException e) {
+            // 8. Invalid user input (e.g., invalid pagination parameters)
+            logger.error("Invalid pagination parameters.", e);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid pagination parameters.", e);
+
+        } catch (ResourceNotFoundException e) {
+            // 2. Empty database
+            logger.error("NO CONTENT.", e);
+            throw new ResponseStatusException(HttpStatus.NO_CONTENT, e.getMessage());
+
+        } catch (Exception e) {
+            logger.error("Error fetching users: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 
     // ✅ Get a user by ID
@@ -246,21 +296,21 @@ public class UserService implements UserDetailsService {
         if (userOptional.isPresent()) {
             return userOptional.get();
         } else {
-            log.warn("User not found with username: {}", username);
+            logger.warn("User not found with username: {}", username);
             throw new UserNotFoundException("User not found with username: " + username);
         }
     }
     // ✅ Delete a user by ID
     public void deleteUser(Long id) {
         if (!userRepository.existsById(id)) {
-            log.warn("Attempted to delete non-existent user with id: {}", id);
+            logger.warn("Attempted to delete non-existent user with id: {}", id);
             throw new UserNotFoundException("User not found with id: " + id);
         }
         try {
             userRepository.deleteById(id);
-            log.info("User with id: {} deleted successfully", id);
+            logger.info("User with id: {} deleted successfully", id);
         } catch (Exception e) {
-            log.error("Error deleting user with id: {}", id, e);
+            logger.error("Error deleting user with id: {}", id, e);
             throw new RuntimeException("Failed to delete user: " + e.getMessage()); // Or a custom exception
         }
     }
@@ -286,38 +336,52 @@ public class UserService implements UserDetailsService {
 
             // Save the updated user
             userRepository.save(user);
+            // Send the password reset link
+            emailService.sendPasswordResetEmail(user.getEmail(), token);
+
+            // Log the event
+            logger.info("Password Reset link sent to: {}", email);
+
+
         } catch (ResourceNotFoundException ex) {
             throw ex; // Re-throw ResourceNotFoundException
         } catch (Exception ex) {
+            logger.error("Failed to generate password reset token: " + ex.getMessage());
             throw new PasswordResetException("Failed to generate password reset token: " + ex.getMessage());
         }
     }
 
     // ✅ Reset password securely
     public User resetPassword(String token, String newPassword) {
+        logger.info("Attempting to reset password for token: {}", token);
+
+        // Find the user by the reset token
+        User user = userRepository.findByPasswordResetToken(token)
+                .orElseThrow(() -> {
+                    logger.error("Invalid token: {}", token);
+                    return new ResourceNotFoundException("Invalid token");
+                });
+
+        // Check if the token has expired
+        if (user.getPasswordResetTokenExpiry().isBefore(LocalDateTime.now())) {
+            logger.warn("Token expired for user: {}", user.getEmail());
+            throw new PasswordResetException("Token expired");
+        }
+
         try {
-            logger.info("Attempting to reset password for token: {}", token);
-            User user = userRepository.findByPasswordResetToken(token)
-                    .orElseThrow(() -> new ResourceNotFoundException("Invalid token"));
-
-            if (user.getPasswordResetTokenExpiry().isBefore(LocalDateTime.now())) {
-                logger.warn("Token expired for user: {}", user.getEmail());
-                throw new PasswordResetException("Token expired");
-            }
-
+            // Update the user's password and clear the reset token
             user.setPassword(passwordEncoder.encode(newPassword));
             user.setPasswordResetToken(null);
             user.setPasswordResetTokenExpiry(null);
-            userRepository.save(user);
-            logger.info("Password reset successfully for user: {}", user.getEmail());
-        } catch (ResourceNotFoundException | PasswordResetException ex) {
-            logger.error("Error resetting password: {}", ex.getMessage());
-            throw ex;
+
+            // Save the updated user
+            User savedUser = userRepository.save(user);
+            logger.info("Password reset successfully for user: {}", savedUser.getEmail());
+            return savedUser; // Return the updated user object
         } catch (Exception ex) {
-            logger.error("Unexpected error resetting password: {}", ex.getMessage());
+            logger.error("Unexpected error resetting password: {}", ex.getMessage(), ex);
             throw new PasswordResetException("Failed to reset password: " + ex.getMessage());
         }
-        return null;
     }
     // ✅ Register user with social login
     public User registerWithSocialLogin(String email, String provider, String providerId) {
@@ -369,6 +433,29 @@ public class UserService implements UserDetailsService {
             // Log the error
             System.err.println("Email verification failed: " + e.getMessage());
             return false;
+        }
+    }
+
+    public void logoutUser() {
+        try {
+            // Get the current authentication object
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+            if (authentication == null) {
+                logger.warn("No user is currently authenticated.");
+                throw new ResourceNotFoundException("No user is currently authenticated.");
+            }
+
+            // Perform logout (invalidate session, clear security context, etc.)
+            SecurityContextHolder.clearContext();
+            logger.info("User '{}' has been logged out successfully.", authentication.getName());
+
+        } catch (ResourceNotFoundException e) {
+            logger.error("Logout failed: {}", e.getMessage());
+            throw e; // Re-throw for global exception handling
+        } catch (Exception e) {
+            logger.error("An unexpected error occurred during logout: {}", e.getMessage(), e);
+            throw new ServiceException("An unexpected error occurred during logout.", e);
         }
     }
 
