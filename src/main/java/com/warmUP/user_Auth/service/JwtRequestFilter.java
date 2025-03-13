@@ -20,11 +20,13 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
     private final UserService userService;
     private final JwtUtil jwtUtil;
+    private final CustomUserDetailsService customUserDetailsService;
 
     @Autowired
-    public JwtRequestFilter(UserService userService, JwtUtil jwtUtil) {
+    public JwtRequestFilter(UserService userService, JwtUtil jwtUtil, CustomUserDetailsService customUserDetailsService) {
         this.userService = userService;
         this.jwtUtil = jwtUtil;
+        this.customUserDetailsService = customUserDetailsService;
     }
 
     @Override
@@ -44,7 +46,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         // Validate the token and set the authentication in the SecurityContext
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
-                UserDetails userDetails = this.userService.loadUserByUsername(username);
+                UserDetails userDetails = this.customUserDetailsService.loadUserByUsername(username);
 
                 if (jwtUtil.validateToken(jwt, userDetails)) {
                     UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken =

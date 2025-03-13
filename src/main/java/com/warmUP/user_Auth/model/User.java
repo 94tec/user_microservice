@@ -2,8 +2,6 @@ package com.warmUP.user_Auth.model;
 
 import lombok.Data;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -20,71 +18,49 @@ public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Setter
-    @Getter
     private Long id;
 
-    @Setter
-    @Getter
+    @Column(nullable = false, unique = true)
     private String username;
-    @Setter
-    @Getter
-    private String password;
-    @Setter
-    @Getter
-    private String role; // e.g., ROLE_USER, ROLE_ADMIN
 
-    // New fields
-    @Setter
-    @Getter
+    @Column(nullable = false)
+    private String password;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role; // Role of the user
+
+    @Column(nullable = false)
     private String firstName;
-    @Setter
-    @Getter
+
+    @Column(nullable = false)
     private String lastName;
-    @Setter
-    @Getter
+
+    @Column(nullable = false, unique = true)
     private String email;
 
-    // Audit fields
-    // Auto-generated fields
-    @Setter
-    @Getter
     private boolean emailVerified;
-    @Setter
-    @Getter
-    private boolean active = false; // Default to true, set to false if account is deactivated
 
-    @Setter
-    @Getter
+    @Column(nullable = false)
+    private boolean active = true;
+
     @Column(updatable = false) // createdAt should not be updated after creation
     private LocalDateTime createdAt;
 
-    @Setter
-    @Getter
     private LocalDateTime updatedAt;
     //social login
-    @Setter
-    @Getter
     private String provider; // e.g., "google", "facebook"
-    @Setter
-    @Getter
+
     private String providerId; // Unique ID from the provider
+
     // Password reset fields
-    @Setter
-    @Getter
     private String passwordResetToken;
 
-    @Setter
-    @Getter
     private LocalDateTime passwordResetTokenExpiry;
 
     // Email verification fields
-    @Setter
-    @Getter
     private String emailVerificationToken;
 
-    @Setter
-    @Getter
     private LocalDateTime emailVerificationTokenExpiry;
     // Relationship with UserProfile (One-to-One)
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
@@ -96,8 +72,9 @@ public class User implements UserDetails {
     // Default constructor (required by JPA)
     public User() {}
 
+
     // Parameterized constructor
-    public User(Long id, String username, String password, String role, String firstName, String lastName, String email, boolean emailVerified, boolean active)
+    public User(Long id, String username, String password, Role role, String firstName, String lastName, String email, boolean emailVerified, boolean active)
     {
         this.id = id;
         this.username = username;
@@ -111,17 +88,13 @@ public class User implements UserDetails {
         this.createdAt = LocalDateTime.now(); // Set createdAt to the current time
         this.updatedAt = LocalDateTime.now(); // Set updatedAt to the current time
     }
-
     // ✅ Convert role to GrantedAuthority
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        if (role != null) {
-            return Collections.singletonList(new SimpleGrantedAuthority(role));
-        }
-        return Collections.emptyList();
+        return Collections.singletonList(new SimpleGrantedAuthority(role.name()));
     }
 
-    //✅ UserDetails methods
+    // ✅ UserDetails methods
     @Override
     public boolean isAccountNonExpired() {
         return true; // Account never expires
@@ -141,7 +114,8 @@ public class User implements UserDetails {
     public boolean isEnabled() {
         return active; // Account is enabled if active is true
     }
-    // Override toString() for better logging
+
+        // Override toString() for better logging
     @Override
     public String toString() {
         return "User{" +

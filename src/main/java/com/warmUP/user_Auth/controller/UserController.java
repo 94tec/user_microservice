@@ -211,7 +211,7 @@ public class UserController {
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@Valid @RequestBody PasswordResetDTO passwordResetDTO) {
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody PasswordResetDto passwordResetDTO) {
         try {
             // Reset the password and get the updated user object
             User user = userService.resetPassword(passwordResetDTO.getToken(), passwordResetDTO.getNewPassword());

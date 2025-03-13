@@ -1,5 +1,6 @@
 package com.warmUP.user_Auth.dto;
 
+import com.warmUP.user_Auth.model.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -51,6 +52,7 @@ public class UserRequest {
         return "UserRegistrationRequest{" +
                 "username='" + username + '\'' +
                 ", email='" + email + '\'' +
+                ", role='" + role + '\'' +
                 ", isAdmin=" + isAdmin +
                 '}';
     }

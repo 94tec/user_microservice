@@ -3,6 +3,7 @@ package com.warmUP.user_Auth.service;
 import com.warmUP.user_Auth.dto.UserRequest;
 import com.warmUP.user_Auth.dto.UserResponse;
 import com.warmUP.user_Auth.exception.*;
+import com.warmUP.user_Auth.model.Role;
 import com.warmUP.user_Auth.model.User;
 import com.warmUP.user_Auth.repository.UserRepository;
 import com.warmUP.user_Auth.util.JwtUtil;
@@ -19,14 +20,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,36 +39,29 @@ import java.util.UUID;
 
 @Service
 @Slf4j
-public class UserService implements UserDetailsService {
+public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
+    private final CustomUserDetailsService customUserDetailsService;
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     // ✅ Constructor-based dependency injection (Best Practice)
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, @Lazy AuthenticationManager authenticationManager, JwtUtil jwtUtil, EmailService emailService) {
+    public UserService(
+            UserRepository userRepository, PasswordEncoder passwordEncoder, @Lazy AuthenticationManager authenticationManager, JwtUtil jwtUtil,
+            EmailService emailService, CustomUserDetailsService customUserDetailsService
+    ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.emailService = emailService;
+        this.customUserDetailsService = customUserDetailsService;
     }
-    // ✅ Load user by username (required by UserDetailsService)
-    @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
 
-        return new org.springframework.security.core.userdetails.User(
-                user.getUsername(), // Username
-                user.getPassword(), // Password (already encoded)
-                user.getAuthorities() // Roles/authorities
-        );
-    }
-    // ✅ Create a new user with an encoded password
     @Transactional
     public UserResponse createUser(UserRequest userRequest) {
         try {
@@ -79,61 +72,33 @@ public class UserService implements UserDetailsService {
             checkDuplicateUser(userRequest);
 
             // ✅ Create a new user
-            User user = new User();
-            user.setUsername(userRequest.getUsername());
-            user.setEmail(userRequest.getEmail());
-            user.setPassword(passwordEncoder.encode(userRequest.getPassword())); // Hash password
-            user.setEmailVerified(false); // Email verification required
-            user.setRole(userRequest.getRole()); // Assign default role
-            user.setFirstName(userRequest.getFirstName()); // Set first name from request
-            user.setLastName(userRequest.getLastName()); // Set last name from request
-            user.setCreatedAt(LocalDateTime.now()); // Set creation timestamp
-            user.setUpdatedAt(LocalDateTime.now()); // Set update timestamp
-            user.setActive(false); // Set account as inactive by default
-
-            // Optional: Handle provider and providerId if applicable
-            user.setProvider(null); // Set to null or specify if using social login
-            user.setProviderId(null); // Set to null or specify if using social login
-
-            // Save the user to the database
-            userRepository.save(user);
-
+            User user = buildUserFromRequest(userRequest);
 
             // ✅ Save user to the database
             User savedUser = userRepository.save(user);
 
-            // ✅ Assign role based on isAdmin flag
-            if (userRequest.getRole() != null && (userRequest.getRole().equals("ROLE_ADMIN") || userRequest.getRole().equals("ROLE_USER"))) {
-                user.setRole(userRequest.getRole());
-            } else {
-                user.setRole("ROLE_USER"); // Default role
-            }
+            // ✅ Assign role based on userRequest
+            assignRoleToUser(savedUser, userRequest.getRole());
 
             // ✅ Send email verification link
-            String verificationToken = generateEmailVerificationToken(savedUser);
-            emailService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
+            sendEmailVerification(savedUser);
 
             // ✅ Log the registration event
             logger.info("User registered successfully: {}", savedUser.getUsername());
 
             // ✅ Return the user response
-            return new UserResponse(
-                    savedUser.getId(),
-                    savedUser.getUsername(),
-                    savedUser.getEmail(),
-                    savedUser.getRole(),
-                    savedUser.isEmailVerified()
-            );
+            return buildUserResponse(savedUser);
 
         } catch (DuplicateKeyException e) {
             logger.warn("User registration failed: Duplicate username or email - {}", e.getMessage());
-            throw e; // Re-throw so it can be handled in the controller
+            throw new DuplicateUserException("Username or email already exists");
 
         } catch (Exception e) {
             logger.error("Unexpected error occurred during user registration", e);
-            throw new RuntimeException("An error occurred during registration. Please try again.");
+            throw new ServiceException("An error occurred during registration. Please try again.");
         }
     }
+
 
     private void validateUserRequest(UserRequest userRequest) {
         if (userRequest.getUsername() == null || userRequest.getUsername().isEmpty()) {
@@ -155,8 +120,57 @@ public class UserService implements UserDetailsService {
             throw new DuplicateKeyException("Email already exists");
         }
     }
+
+    private User buildUserFromRequest(UserRequest userRequest) {
+        User user = new User();
+        user.setUsername(userRequest.getUsername());
+        user.setEmail(userRequest.getEmail());
+        user.setPassword(passwordEncoder.encode(userRequest.getPassword())); // Hash password
+        user.setEmailVerified(false); // Email verification required
+        user.setFirstName(userRequest.getFirstName()); // Set first name from request
+        user.setLastName(userRequest.getLastName()); // Set last name from request
+        user.setCreatedAt(LocalDateTime.now()); // Set creation timestamp
+        user.setUpdatedAt(LocalDateTime.now()); // Set update timestamp
+        user.setActive(false); // Set account as inactive by default
+
+        // Optional: Handle provider and providerId if applicable
+        user.setProvider(null); // Set to null or specify if using social login
+        user.setProviderId(null); // Set to null or specify if using social login
+
+        return user;
+    }
+    private void assignRoleToUser(User user, String roleString) {
+        if (roleString != null) {
+            try {
+                // Convert the role string to the Role enum
+                Role role = Role.valueOf(roleString);
+                user.setRole(role);
+            } catch (IllegalArgumentException ex) {
+                // If the role is invalid, set the default role
+                user.setRole(Role.ROLE_USER); // Default role
+                logger.warn("Invalid role provided: {}. Defaulting to ROLE_USER.", roleString);
+            }
+        } else {
+            // If no role is provided, set the default role
+            user.setRole(Role.ROLE_USER); // Default role
+        }
+    }
+    private void sendEmailVerification(User user) {
+        String verificationToken = generateEmailVerificationToken(user);
+        emailService.sendVerificationEmail(user.getEmail(), verificationToken);
+    }
+    private UserResponse buildUserResponse(User user) {
+        return new UserResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getRole(),
+                user.isEmailVerified()
+        );
+    }
+
     private String generateEmailVerificationToken(User user) {
-        UserDetails userDetails = loadUserByUsername(user.getUsername());
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername(user.getUsername());
         return jwtUtil.generateToken(userDetails);
     }
     // ✅ Login a user and generate a JWT token
@@ -170,7 +184,7 @@ public class UserService implements UserDetailsService {
 
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
 
-            UserDetails userDetails = loadUserByUsername(username); // Load user details once
+            UserDetails userDetails = customUserDetailsService.loadUserByUsername(username); // Load user details once
             User user = findUserByUsername(username); //Retrieve the full user object
 
             // Check if the user's email is verified
@@ -205,6 +219,7 @@ public class UserService implements UserDetailsService {
     }
 
     // ✅ Get all users
+    @PreAuthorize("hasRole('ADMIN') or hasPermission(#id, 'UPDATE')")
     public List<User> getAllUsers(int page, int size) {
         logger.info("Fetching users with page={} and size={}", page, size);
         try {
@@ -474,7 +489,6 @@ public class UserService implements UserDetailsService {
 
             // Verify the email
             user.setEmailVerified(true);
-            user.setActive(true);
             userRepository.save(user);
             logger.info("Email verified successfully for user: {}", user.getEmail());
         } catch (JwtException ex) {
