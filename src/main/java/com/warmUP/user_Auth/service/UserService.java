@@ -2,12 +2,11 @@ package com.warmUP.user_Auth.service;
 
 import com.warmUP.user_Auth.dto.UserRequest;
 import com.warmUP.user_Auth.dto.UserResponse;
-import com.warmUP.user_Auth.exception.PasswordResetException;
-import com.warmUP.user_Auth.exception.ResourceNotFoundException;
-import com.warmUP.user_Auth.exception.UserNotFoundException;
+import com.warmUP.user_Auth.exception.*;
 import com.warmUP.user_Auth.model.User;
 import com.warmUP.user_Auth.repository.UserRepository;
 import com.warmUP.user_Auth.util.JwtUtil;
+import io.jsonwebtoken.JwtException;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.service.spi.ServiceException;
 import org.slf4j.Logger;
@@ -252,24 +251,61 @@ public class UserService implements UserDetailsService {
 
     // ✅ Get a user by ID
     public User getUserById(Long id) {
+        // Validate the ID
+        if (id == null || id <= 0) {
+            logger.error("Invalid user ID: {}", id);
+            throw new InvalidUserIdException("Invalid user ID: " + id);
+        }
+
+        // Retrieve the user from the repository
         return userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+                .orElseThrow(() -> {
+                    logger.error("User not found with ID: {}", id);
+                    return new UserNotFoundException("User not found with ID: " + id);
+                });
     }
 
-    // ✅ Update a user by ID
     public User updateUser(Long id, User userDetails) {
-        User user = getUserById(id); // Throws ResourceNotFoundException if user not found
-        updateUserFields(user, userDetails); // Update user fields
-        return userRepository.save(user); // Save the updated user
+        // Validate the user ID
+        if (id == null || id <= 0) {
+            logger.error("Invalid user ID: {}", id);
+            throw new InvalidUserIdException("Invalid user ID: " + id);
+        }
+
+        // Validate the user details
+        if (userDetails == null) {
+            logger.error("User details are null");
+            throw new InvalidUserDetailsException("User details cannot be null");
+        }
+
+        // Retrieve the user
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> {
+                    logger.error("User not found with ID: {}", id);
+                    return new ResourceNotFoundException("User not found with ID: " + id);
+                });
+
+        // Update user fields
+        updateUserFields(user, userDetails);
+
+        // Save the updated user
+        User updatedUser = userRepository.save(user);
+        logger.info("User updated successfully with ID: {}", id);
+        return updatedUser;
     }
 
-    // 🔹 Helper method to update user fields
+    /**
+     * Helper method to update user fields.
+     *
+     * @param user        The user to update.
+     * @param userDetails The updated user details.
+     */
     private void updateUserFields(User user, User userDetails) {
         if (userDetails.getUsername() != null) {
             user.setUsername(userDetails.getUsername());
         }
 
-        // 🔹 Ensure password is re-encoded if updated
+        // Ensure password is re-encoded if updated
         if (userDetails.getPassword() != null && !userDetails.getPassword().isBlank()) {
             user.setPassword(passwordEncoder.encode(userDetails.getPassword()));
         }
@@ -313,13 +349,6 @@ public class UserService implements UserDetailsService {
             logger.error("Error deleting user with id: {}", id, e);
             throw new RuntimeException("Failed to delete user: " + e.getMessage()); // Or a custom exception
         }
-    }
-
-    // ✅ Verify a user's email
-    public void verifyEmail(Long userId) {
-        User user = getUserById(userId); // Throws ResourceNotFoundException if user not found
-        user.setEmailVerified(true);
-        userRepository.save(user);
     }
 
     // ✅ Generate password reset token
@@ -414,25 +443,46 @@ public class UserService implements UserDetailsService {
         logger.info("Email verification link sent to: {}", email);
     }
 
-    public boolean verifyEmail(String token) {
+    // ✅ Verify a user's email
+    public void verifyEmail(String token) {
         try {
+            // Validate the token
+            if (token == null || token.isEmpty()) {
+                logger.error("Invalid or empty token");
+                throw new InvalidTokenException("Invalid or empty token");
+            }
+
             // Extract the username from the token
             String username = jwtUtil.extractUsername(token);
+            if (username == null || username.isEmpty()) {
+                logger.error("Invalid token: Unable to extract username");
+                throw new InvalidTokenException("Invalid token: Unable to extract username");
+            }
 
             // Find the user by username
             User user = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+                    .orElseThrow(() -> {
+                        logger.error("User not found with username: {}", username);
+                        return new UserNotFoundException("User not found with username: " + username);
+                    });
 
-            // Mark the email as verified
+            // Check if the email is already verified
+            if (user.isEmailVerified()) {
+                logger.warn("Email already verified for user: {}", user.getEmail());
+                throw new EmailAlreadyVerifiedException("Email already verified for user: " + user.getEmail());
+            }
+
+            // Verify the email
             user.setEmailVerified(true);
             user.setActive(true);
             userRepository.save(user);
-
-            return true;
-        } catch (Exception e) {
-            // Log the error
-            System.err.println("Email verification failed: " + e.getMessage());
-            return false;
+            logger.info("Email verified successfully for user: {}", user.getEmail());
+        } catch (JwtException ex) {
+            logger.error("Token validation failed: {}", ex.getMessage());
+            throw new InvalidTokenException("Token validation failed: " + ex.getMessage());
+        } catch (Exception ex) {
+            logger.error("Unexpected error during email verification: {}", ex.getMessage(), ex);
+            throw new RuntimeException("Unexpected error during email verification: " + ex.getMessage());
         }
     }
 

@@ -1,7 +1,12 @@
+com/warmUP/user_Auth/exception/ServiceException.class
 com/warmUP/user_Auth/dto/UserRequest.class
 com/warmUP/user_Auth/exception/PasswordResetException.class
 com/warmUP/user_Auth/exception/GlobalExceptionHandler.class
 com/warmUP/user_Auth/dto/LoginResponseDto.class
+com/warmUP/user_Auth/exception/InvalidTokenException.class
 com/warmUP/user_Auth/dto/PasswordResetDTO.class
 com/warmUP/user_Auth/dto/LoginRequestDto.class
+com/warmUP/user_Auth/exception/InvalidUserIdException.class
+com/warmUP/user_Auth/exception/EmailAlreadyVerifiedException.class
 com/warmUP/user_Auth/exception/UserNotFoundException.class
+com/warmUP/user_Auth/exception/InvalidUserDetailsException.class

@@ -1,9 +1,7 @@
 package com.warmUP.user_Auth.controller;
 
 import com.warmUP.user_Auth.dto.*;
-import com.warmUP.user_Auth.exception.PasswordResetException;
-import com.warmUP.user_Auth.exception.ResourceNotFoundException;
-import com.warmUP.user_Auth.exception.UserNotFoundException;
+import com.warmUP.user_Auth.exception.*;
 import com.warmUP.user_Auth.model.User;
 import com.warmUP.user_Auth.service.EmailService;
 import com.warmUP.user_Auth.service.UserService;
@@ -81,6 +79,29 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
         }
     }
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody User userDetails) {
+        try {
+            User updatedUser = userService.updateUser(id, userDetails);
+            return ResponseEntity.ok(updatedUser);
+        } catch (InvalidUserIdException ex) {
+            logger.error("Invalid user ID: {}", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", ex.getMessage(), "status", HttpStatus.BAD_REQUEST.toString()));
+        } catch (ResourceNotFoundException ex) {
+            logger.error("User not found: {}", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", ex.getMessage(), "status", HttpStatus.NOT_FOUND.toString()));
+        } catch (InvalidUserDetailsException ex) {
+            logger.error("Invalid user details: {}", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", ex.getMessage(), "status", HttpStatus.BAD_REQUEST.toString()));
+        } catch (Exception ex) {
+            logger.error("Unexpected error: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "An unexpected error occurred: " + ex.getMessage(), "status", HttpStatus.INTERNAL_SERVER_ERROR.toString()));
+        }
+    }
 
     @PostMapping("/logout")
     public ResponseEntity<?> logoutUser() {
@@ -141,16 +162,23 @@ public class UserController {
 
     // ✅ GET: Retrieve a user by ID
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        User user = userService.getUserById(id); // Throws ResourceNotFoundException if user not found
-        return ResponseEntity.ok(user);
-    }
-
-    // ✅ PUT: Update a user by ID
-    @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User userDetails) {
-        User updatedUser = userService.updateUser(id, userDetails); // Throws ResourceNotFoundException if user not found
-        return ResponseEntity.ok(updatedUser);
+    public ResponseEntity<?> getUserById(@PathVariable Long id) {
+        try {
+            User user = userService.getUserById(id);
+            return ResponseEntity.ok(user);
+        } catch (InvalidUserIdException ex) {
+            logger.error("Invalid user ID: {}", id);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", ex.getMessage(), "status", HttpStatus.BAD_REQUEST.toString()));
+        } catch (UserNotFoundException ex) {
+            logger.error("User not found: {}", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", ex.getMessage(), "status", HttpStatus.NOT_FOUND.toString()));
+        } catch (Exception ex) {
+            logger.error("Unexpected error: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "An unexpected error occurred: " + ex.getMessage(), "status", HttpStatus.INTERNAL_SERVER_ERROR.toString()));
+        }
     }
 
     // ✅ DELETE: Delete a user by ID
@@ -165,13 +193,6 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
 
-    }
-
-    // ✅ POST: Verify a user's email
-    @PostMapping("/{id}/verify-email")
-    public ResponseEntity<Void> verifyEmail(@PathVariable Long id) {
-        userService.verifyEmail(id); // Throws ResourceNotFoundException if user not found
-        return ResponseEntity.ok().build();
     }
 
     // ✅ POST: Generate password reset token
@@ -250,14 +271,27 @@ public class UserController {
         }
     }
 
-    @GetMapping("/verify-email")
+    @PostMapping("/verify-email")
     public ResponseEntity<?> verifyEmail(@RequestParam String token) {
-        boolean isVerified = userService.verifyEmail(token);
-
-        if (isVerified) {
-            return ResponseEntity.ok("Email verified successfully!");
-        } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid or expired token.");
+        try {
+            userService.verifyEmail(token);
+            return ResponseEntity.ok(Map.of("message", "Email verified successfully"));
+        } catch (InvalidTokenException ex) {
+            logger.error("Invalid token: {}", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", ex.getMessage(), "status", HttpStatus.BAD_REQUEST.toString()));
+        } catch (UserNotFoundException ex) {
+            logger.error("User not found: {}", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", ex.getMessage(), "status", HttpStatus.NOT_FOUND.toString()));
+        } catch (EmailAlreadyVerifiedException ex) {
+            logger.error("Email already verified: {}", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", ex.getMessage(), "status", HttpStatus.CONFLICT.toString()));
+        } catch (Exception ex) {
+            logger.error("Unexpected error: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "An unexpected error occurred: " + ex.getMessage(), "status", HttpStatus.INTERNAL_SERVER_ERROR.toString()));
         }
     }
 

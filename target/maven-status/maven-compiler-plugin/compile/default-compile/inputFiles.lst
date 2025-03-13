@@ -9,9 +9,14 @@
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/PasswordResetDTO.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/UserRequest.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/UserResponse.java
+/home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/EmailAlreadyVerifiedException.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/GlobalExceptionHandler.java
+/home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/InvalidTokenException.java
+/home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/InvalidUserDetailsException.java
+/home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/InvalidUserIdException.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/PasswordResetException.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/ResourceNotFoundException.java
+/home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/ServiceException.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/UserNotFoundException.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/model/AuditLog.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/model/User.java

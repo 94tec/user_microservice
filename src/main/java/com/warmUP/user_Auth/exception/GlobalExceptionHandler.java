@@ -24,6 +24,16 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
     }
 
+    // Handle InvalidUserIdException
+    @ExceptionHandler(InvalidUserIdException.class)
+    public ResponseEntity<Map<String, String>> handleUInvalidUserIdException(
+            InvalidUserIdException ex, WebRequest request) {
+        Map<String, String> errorResponse = new HashMap<>();
+        errorResponse.put("error", ex.getMessage());
+        errorResponse.put("status", HttpStatus.NOT_FOUND.toString());
+        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+    }
+
     // Handle ResourceNotFoundException
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleResourceNotFoundException(
