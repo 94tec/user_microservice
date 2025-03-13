@@ -1,6 +1,9 @@
 package com.warmUP.user_Auth.exception;
 
+import com.warmUP.user_Auth.dto.ErrorDetails;
 import org.hibernate.service.spi.ServiceException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -8,89 +11,119 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 
-import java.util.HashMap;
+import java.util.Date;
 import java.util.Map;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-    // Handle UserNotFoundException
-    @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleUserNotFoundException(
-            UserNotFoundException ex, WebRequest request) {
-        Map<String, String> errorResponse = new HashMap<>();
-        errorResponse.put("error", ex.getMessage());
-        errorResponse.put("status", HttpStatus.NOT_FOUND.toString());
-        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(DuplicateUserException.class)
+    public ResponseEntity<?> handleDuplicateUserException(DuplicateUserException ex, WebRequest request) {
+        logger.error("DuplicateUserException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.CONFLICT);
     }
 
-    // Handle InvalidUserIdException
-    @ExceptionHandler(InvalidUserIdException.class)
-    public ResponseEntity<Map<String, String>> handleUInvalidUserIdException(
-            InvalidUserIdException ex, WebRequest request) {
-        Map<String, String> errorResponse = new HashMap<>();
-        errorResponse.put("error", ex.getMessage());
-        errorResponse.put("status", HttpStatus.NOT_FOUND.toString());
-        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+    @ExceptionHandler(EmailAlreadyVerifiedException.class)
+    public ResponseEntity<?> handleEmailAlreadyVerifiedException(EmailAlreadyVerifiedException ex, WebRequest request) {
+        logger.error("EmailAlreadyVerifiedException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
     }
 
-    // Handle ResourceNotFoundException
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleResourceNotFoundException(
-            ResourceNotFoundException ex, WebRequest request) {
-        Map<String, String> errorResponse = new HashMap<>();
-        errorResponse.put("error", ex.getMessage());
-        errorResponse.put("status", HttpStatus.NOT_FOUND.toString());
-        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<?> handleInvalidTokenException(InvalidTokenException ex, WebRequest request) {
+        logger.error("InvalidTokenException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.UNAUTHORIZED);
     }
 
-    // Handle PasswordResetException
+    @ExceptionHandler(InvalidUserDetailsException.class)
+    public ResponseEntity<?> handleInvalidUserDetailsException(InvalidUserDetailsException ex, WebRequest request) {
+        logger.error("InvalidUserDetailsException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(PasswordResetException.class)
-    public ResponseEntity<Map<String, String>> handlePasswordResetException(
-            PasswordResetException ex, WebRequest request) {
-        Map<String, String> errorResponse = new HashMap<>();
-        errorResponse.put("error", ex.getMessage());
-        errorResponse.put("status", HttpStatus.BAD_REQUEST.toString());
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    public ResponseEntity<?> handlePasswordResetException(PasswordResetException ex, WebRequest request) {
+        logger.error("PasswordResetException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(InvalidUserIdException.class)
+    public ResponseEntity<?> handleInvalidUserIdException(InvalidUserIdException ex, WebRequest request) {
+        logger.error("InvalidUserIdException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<?> handleResourceNotFoundException(ResourceNotFoundException ex, WebRequest request) {
+        logger.error("ResourceNotFoundException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(ServiceException.class)
+    public ResponseEntity<?> handleServiceException(ServiceException ex, WebRequest request) {
+        logger.error("ServiceException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<?> handleUserNotFoundException(UserNotFoundException ex, WebRequest request) {
+        logger.error("UserNotFoundException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
     }
 
     // Handle AccessDeniedException
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<Map<String, String>> handleAccessDeniedException(
+    public ResponseEntity<?> handleAccessDeniedException(
             AccessDeniedException ex, WebRequest request) {
-        Map<String, String> errorResponse = new HashMap<>();
-        errorResponse.put("error", ex.getMessage());
-        errorResponse.put("status", HttpStatus.FORBIDDEN.toString());
-        return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+        logger.error("AccessDeniedException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
     }
 
     // Handle IllegalArgumentException
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, String>> handleIllegalArgumentException(
+    public ResponseEntity<?>  handleIllegalArgumentException(
             IllegalArgumentException ex, WebRequest request) {
-        Map<String, String> errorResponse = new HashMap<>();
-        errorResponse.put("error", ex.getMessage());
-        errorResponse.put("status", HttpStatus.BAD_REQUEST.toString());
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        logger.error("IllegalArgumentException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
+    }
+    @ExceptionHandler(UserProfileNotFoundException.class)
+    public ResponseEntity<?> handleUserProfileNotFoundException(UserProfileNotFoundException ex, WebRequest request) {
+        logger.error("UserProfileNotFoundException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
     }
 
-    // Handle ServiceException
-    @ExceptionHandler(ServiceException.class)
-    public ResponseEntity<Map<String, String>> handleServiceException(
-            ServiceException ex, WebRequest request) {
-        Map<String, String> errorResponse = new HashMap<>();
-        errorResponse.put("error", ex.getMessage());
-        errorResponse.put("status", HttpStatus.INTERNAL_SERVER_ERROR.toString());
-        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    @ExceptionHandler(InvalidUserProfileException.class)
+    public ResponseEntity<?> handleInvalidUserProfileException(InvalidUserProfileException ex, WebRequest request) {
+        logger.error("InvalidUserProfileException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
+    }
+    @ExceptionHandler(UserProfileUpdateException.class)
+    public ResponseEntity<?> handleUserProfileUpdateException(UserProfileUpdateException ex, WebRequest request) {
+        logger.error("UserProfileUpdateException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
     }
 
-    // Handle all other exceptions
+    // Generic exception handler
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, String>> handleGlobalException(
-            Exception ex, WebRequest request) {
-        Map<String, String> errorResponse = new HashMap<>();
-        errorResponse.put("error", "An unexpected error occurred: " + ex.getMessage());
-        errorResponse.put("status", HttpStatus.INTERNAL_SERVER_ERROR.toString());
-        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    public ResponseEntity<?> handleGlobalException(Exception ex, WebRequest request) {
+        logger.error("Unhandled Exception: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

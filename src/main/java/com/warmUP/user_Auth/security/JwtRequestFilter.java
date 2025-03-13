@@ -1,5 +1,7 @@
-package com.warmUP.user_Auth.service;
+package com.warmUP.user_Auth.security;
 
+import com.warmUP.user_Auth.service.CustomUserDetailsService;
+import com.warmUP.user_Auth.service.UserService;
 import com.warmUP.user_Auth.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -18,13 +20,11 @@ import java.io.IOException;
 @Component
 public class JwtRequestFilter extends OncePerRequestFilter {
 
-    private final UserService userService;
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService customUserDetailsService;
 
     @Autowired
-    public JwtRequestFilter(UserService userService, JwtUtil jwtUtil, CustomUserDetailsService customUserDetailsService) {
-        this.userService = userService;
+    public JwtRequestFilter(JwtUtil jwtUtil, CustomUserDetailsService customUserDetailsService) {
         this.jwtUtil = jwtUtil;
         this.customUserDetailsService = customUserDetailsService;
     }
@@ -61,7 +61,6 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 SecurityContextHolder.clearContext();
             }
         }
-
         // Continue the filter chain
         chain.doFilter(request, response);
     }

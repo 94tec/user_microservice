@@ -5,13 +5,17 @@ import com.warmUP.user_Auth.dto.UserResponse;
 import com.warmUP.user_Auth.exception.*;
 import com.warmUP.user_Auth.model.Role;
 import com.warmUP.user_Auth.model.User;
+import com.warmUP.user_Auth.model.UserProfile;
+import com.warmUP.user_Auth.repository.UserProfileRepository;
 import com.warmUP.user_Auth.repository.UserRepository;
+import com.warmUP.user_Auth.security.SecurityConfig;
 import com.warmUP.user_Auth.util.JwtUtil;
 import io.jsonwebtoken.JwtException;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.service.spi.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
@@ -47,12 +51,20 @@ public class UserService {
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
     private final CustomUserDetailsService customUserDetailsService;
+    private final UserProfileRepository userProfileRepository;
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+
+    @Autowired
+    private AuditLogService auditLogService;
+
+    @Autowired
+    @Lazy // Add this annotation
+    private SecurityConfig securityConfig;
 
     // ✅ Constructor-based dependency injection (Best Practice)
     public UserService(
             UserRepository userRepository, PasswordEncoder passwordEncoder, @Lazy AuthenticationManager authenticationManager, JwtUtil jwtUtil,
-            EmailService emailService, CustomUserDetailsService customUserDetailsService
+            EmailService emailService, CustomUserDetailsService customUserDetailsService, UserProfileRepository userProfileRepository
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -60,6 +72,7 @@ public class UserService {
         this.jwtUtil = jwtUtil;
         this.emailService = emailService;
         this.customUserDetailsService = customUserDetailsService;
+        this.userProfileRepository = userProfileRepository;
     }
 
     @Transactional
@@ -83,8 +96,22 @@ public class UserService {
             // ✅ Send email verification link
             sendEmailVerification(savedUser);
 
+            // ✅ Create the UserProfile entity
+            UserProfile profile = new UserProfile();
+            profile.setUser(savedUser);
+            profile.setProfilePictureUrl(userRequest.getProfilePictureUrl());
+            profile.setBio(userRequest.getBio());
+            userProfileRepository.save(profile);
+
             // ✅ Log the registration event
             logger.info("User registered successfully: {}", savedUser.getUsername());
+            logger.info("Profile created successfully for user ID: {}", savedUser.getId());
+
+            // ✅ Log the action in the audit log
+            auditLogService.logAction(
+                    "USER_CREATED",
+                    "User " + savedUser.getUsername() + " was created"
+            );
 
             // ✅ Return the user response
             return buildUserResponse(savedUser);
@@ -174,6 +201,8 @@ public class UserService {
         return jwtUtil.generateToken(userDetails);
     }
     // ✅ Login a user and generate a JWT token
+
+
     public String loginUser(String username, String password) {
         try {
             // Check if user exists in DB and password matches
@@ -183,6 +212,8 @@ public class UserService {
             }
 
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
+            // Log the login action
+            auditLogService.logAction("LOGIN", "User " + username + " signed in");
 
             UserDetails userDetails = customUserDetailsService.loadUserByUsername(username); // Load user details once
             User user = findUserByUsername(username); //Retrieve the full user object
@@ -219,7 +250,7 @@ public class UserService {
     }
 
     // ✅ Get all users
-    @PreAuthorize("hasRole('ADMIN') or hasPermission(#id, 'UPDATE')")
+    @PreAuthorize("hasRole('ADMIN')")
     public List<User> getAllUsers(int page, int size) {
         logger.info("Fetching users with page={} and size={}", page, size);
         try {

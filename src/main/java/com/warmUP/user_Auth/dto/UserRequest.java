@@ -32,11 +32,15 @@ public class UserRequest {
     private String password;
 
     private boolean isAdmin;
+
+    private String profilePictureUrl;
+
+    private String bio;
     // Default constructor
     public UserRequest() {
     }
     // Parameterized constructor
-    public UserRequest(String username, String email, String role, String firstName, String lastName, String password, boolean isAdmin) {
+    public UserRequest(String username, String email, String role, String firstName, String lastName, String password, boolean isAdmin, String profilePictureUrl, String bio) {
         this.username = username;
         this.email = email;
         this.role = role;
@@ -44,6 +48,8 @@ public class UserRequest {
         this.firstName = firstName;
         this.lastName = lastName;
         this.isAdmin = isAdmin;
+        this.profilePictureUrl = profilePictureUrl;
+        this.bio = bio;
     }
     
 
@@ -54,6 +60,8 @@ public class UserRequest {
                 ", email='" + email + '\'' +
                 ", role='" + role + '\'' +
                 ", isAdmin=" + isAdmin +
+                ", profilePictureUrl='" + profilePictureUrl + '\'' +
+                ", bio='" + bio + '\'' +
                 '}';
     }
 

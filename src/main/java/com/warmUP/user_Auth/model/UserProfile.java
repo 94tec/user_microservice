@@ -17,7 +17,8 @@ public class UserProfile {
 
     private String firstName;
     private String lastName;
-    private String avatarUrl;
+    private String profilePictureUrl;
+    private String bio;
     private boolean isPublic; // Profile privacy setting
 
     // Relationship with User (One-to-One)
@@ -26,11 +27,12 @@ public class UserProfile {
     private User user;
 
     public UserProfile() {}
-    public UserProfile(Long id, String firstName, String lastName, String avatarUrl, boolean isPublic, User user) {
+    public UserProfile(Long id, String firstName, String lastName, String profilePictureUrl, String bio, boolean isPublic, User user) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
-        this.avatarUrl = avatarUrl;
+        this.profilePictureUrl = profilePictureUrl;
+        this.bio = bio;
         this.isPublic = isPublic;
         this.user = user;
     }

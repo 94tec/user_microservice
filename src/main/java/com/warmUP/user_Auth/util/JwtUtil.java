@@ -24,7 +24,6 @@ public class JwtUtil {
         // Automatically generate a secure key for HS256
         this.secretKey = Keys.secretKeyFor(io.jsonwebtoken.SignatureAlgorithm.HS256);
     }
-
     /**
      * Generates a JWT token for a user.
      *
@@ -33,6 +32,7 @@ public class JwtUtil {
      */
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
+        claims.put("role", userDetails.getAuthorities()); // Add user role to claims
         return createToken(claims, userDetails.getUsername());
     }
     /**

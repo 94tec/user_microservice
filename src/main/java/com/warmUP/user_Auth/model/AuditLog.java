@@ -17,9 +17,15 @@ public class AuditLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String action; // e.g., "LOGIN", "LOGOUT", "UPDATE_PROFILE"
+
+    @Column(nullable = false)
     private String username;
+
+    @Column(nullable = false)
     private LocalDateTime timestamp;
+
 
     // Relationship with User (Many-to-One)
     @ManyToOne(fetch = FetchType.LAZY)

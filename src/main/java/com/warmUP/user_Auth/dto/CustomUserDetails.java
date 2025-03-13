@@ -1,4 +1,4 @@
-package com.warmUP.user_Auth.security;
+package com.warmUP.user_Auth.dto;
 
 import com.warmUP.user_Auth.model.User;
 import org.springframework.security.core.GrantedAuthority;
@@ -13,6 +13,9 @@ public class CustomUserDetails implements UserDetails {
     private final User user;
 
     public CustomUserDetails(User user) {
+        if (user == null) {
+            throw new IllegalArgumentException("User cannot be null");
+        }
         this.user = user;
     }
 
@@ -34,21 +37,26 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isAccountNonExpired() {
-        return true;
+        return true; // You can customize this based on your application's requirements
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        return true; // You can customize this based on your application's requirements
     }
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return true;
+        return true; // You can customize this based on your application's requirements
     }
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return user.isEnabled(); // Use a field from the User entity to determine if the account is enabled
+    }
+
+    // Additional method to get the underlying User entity
+    public User getUser() {
+        return user;
     }
 }

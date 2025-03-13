@@ -36,9 +36,8 @@ public class UserController {
     // ✅ Constructor-based dependency injection (Best Practice)
     @Autowired
     public UserController(
-            UserService userService,EmailService emailService, AuthenticationManager authenticationManager,
-            JwtUtil jwtUtil
-    ) {
+            UserService userService,EmailService emailService,AuthenticationManager authenticationManager,JwtUtil jwtUtil)
+    {
         this.userService = userService;
         this.emailService = emailService;
         this.authenticationManager = authenticationManager;
@@ -188,8 +187,10 @@ public class UserController {
             userService.deleteUser(id);
             return ResponseEntity.noContent().build();
         } catch (UserNotFoundException e) {
+            logger.warn("Attempted to delete non-existent user with id: {}", id);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (RuntimeException e) {
+            logger.error("Error deleting user with id: {}", id, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
 

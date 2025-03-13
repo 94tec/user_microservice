@@ -48,6 +48,9 @@ public class User implements UserDetails {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    @Column
+    private LocalDateTime lastActivity;
     //social login
     private String provider; // e.g., "google", "facebook"
 

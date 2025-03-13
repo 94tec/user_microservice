@@ -6,7 +6,7 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.scheduling.annotation.EnableAsync;
 
 @EnableAsync
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"com.warmUP.user_Auth"})
 public class UserAuthApplication {
 
 	public static void main(String[] args) {
