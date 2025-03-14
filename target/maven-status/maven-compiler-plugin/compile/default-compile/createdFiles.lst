@@ -9,11 +9,14 @@ com/warmUP/user_Auth/exception/DuplicateUserException.class
 com/warmUP/user_Auth/config/EnvLoader.class
 com/warmUP/user_Auth/service/UserActivityService.class
 com/warmUP/user_Auth/dto/LoginResponseDto.class
+com/warmUP/user_Auth/dto/UserProfileDTO.class
+com/warmUP/user_Auth/dto/AuditLogDTO.class
 com/warmUP/user_Auth/dto/LoginRequestDto.class
 com/warmUP/user_Auth/config/EnvVarChecker.class
 com/warmUP/user_Auth/controller/UserController.class
 com/warmUP/user_Auth/exception/UserProfileNotFoundException.class
 com/warmUP/user_Auth/service/TokenService.class
+com/warmUP/user_Auth/dto/TokenDTO.class
 com/warmUP/user_Auth/dto/PasswordResetDto.class
 com/warmUP/user_Auth/repository/UserRepository.class
 com/warmUP/user_Auth/security/MethodSecurityConfig.class

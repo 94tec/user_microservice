@@ -17,6 +17,9 @@ public class AuditLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, insertable = false, updatable = false)
+    private Long user_id;
+
     @Column(nullable = false)
     private String action; // e.g., "LOGIN", "LOGOUT", "UPDATE_PROFILE"
 
@@ -35,8 +38,9 @@ public class AuditLog {
     public AuditLog() {
     }
 
-    public AuditLog(Long id, String action, String username, LocalDateTime timestamp) {
+    public AuditLog(Long id, Long user_id, String action, String username, LocalDateTime timestamp) {
         this.id = id;
+        this.user_id = user_id;
         this.action = action;
         this.username = username;
         this.timestamp = timestamp;

@@ -11,7 +11,7 @@ public interface TokenRepository extends JpaRepository<Token, Long> {
 
     Optional<Token> findByTokenValue(String tokenValue);
 
-    void deleteByTokenValue(String tokenValue);
+    int deleteByTokenValue(String tokenValue);
 
     boolean existsByTokenValue(String tokenValue);
 

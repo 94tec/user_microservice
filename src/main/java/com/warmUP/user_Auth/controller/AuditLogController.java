@@ -1,5 +1,6 @@
 package com.warmUP.user_Auth.controller;
 
+import com.warmUP.user_Auth.dto.AuditLogDTO;
 import com.warmUP.user_Auth.model.AuditLog;
 import com.warmUP.user_Auth.service.AuditLogService;
 import org.slf4j.Logger;
@@ -22,10 +23,10 @@ public class AuditLogController {
 
     // ✅ Retrieve all audit logs
     @GetMapping
-    public ResponseEntity<List<AuditLog>> getAllLogs() {
+    public ResponseEntity<List<AuditLogDTO>> getAllLogs() {
         try {
             logger.info("Received request to retrieve all audit logs");
-            List<AuditLog> logs = auditLogService.getAllLogs();
+            List<AuditLogDTO> logs = auditLogService.getAllLogs();
             return ResponseEntity.ok(logs);
 
         } catch (Exception e) {
@@ -36,10 +37,10 @@ public class AuditLogController {
 
     // ✅ Retrieve audit logs by username
     @GetMapping("/username/{username}")
-    public ResponseEntity<List<AuditLog>> getLogsByUsername(@PathVariable String username) {
+    public ResponseEntity<List<AuditLogDTO>> getLogsByUsername(@PathVariable String username) {
         try {
             logger.info("Received request to retrieve audit logs for username: {}", username);
-            List<AuditLog> logs = auditLogService.getLogsByUsername(username);
+            List<AuditLogDTO> logs = auditLogService.getLogsByUsername(username);
             return ResponseEntity.ok(logs);
 
         } catch (IllegalArgumentException e) {

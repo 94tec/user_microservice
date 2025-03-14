@@ -3,9 +3,9 @@ package com.warmUP.user_Auth.service;
 import com.warmUP.user_Auth.dto.UserRequest;
 import com.warmUP.user_Auth.dto.UserResponse;
 import com.warmUP.user_Auth.exception.*;
-import com.warmUP.user_Auth.model.Role;
-import com.warmUP.user_Auth.model.User;
-import com.warmUP.user_Auth.model.UserProfile;
+import com.warmUP.user_Auth.model.*;
+import com.warmUP.user_Auth.repository.AuditLogRepository;
+import com.warmUP.user_Auth.repository.TokenRepository;
 import com.warmUP.user_Auth.repository.UserProfileRepository;
 import com.warmUP.user_Auth.repository.UserRepository;
 import com.warmUP.user_Auth.security.SecurityConfig;
@@ -52,10 +52,16 @@ public class UserService {
     private final EmailService emailService;
     private final CustomUserDetailsService customUserDetailsService;
     private final UserProfileRepository userProfileRepository;
+    private final AuditLogRepository auditLogRepository;
+    private final TokenRepository tokenRepository;
+
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     @Autowired
     private AuditLogService auditLogService;
+
+    @Autowired
+    private  UserActivityService userActivityService;
 
     @Autowired
     @Lazy // Add this annotation
@@ -64,7 +70,8 @@ public class UserService {
     // ✅ Constructor-based dependency injection (Best Practice)
     public UserService(
             UserRepository userRepository, PasswordEncoder passwordEncoder, @Lazy AuthenticationManager authenticationManager, JwtUtil jwtUtil,
-            EmailService emailService, CustomUserDetailsService customUserDetailsService, UserProfileRepository userProfileRepository
+            EmailService emailService, CustomUserDetailsService customUserDetailsService, UserProfileRepository userProfileRepository,
+            AuditLogRepository auditLogRepository, TokenRepository tokenRepository
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -73,6 +80,8 @@ public class UserService {
         this.emailService = emailService;
         this.customUserDetailsService = customUserDetailsService;
         this.userProfileRepository = userProfileRepository;
+        this.auditLogRepository = auditLogRepository;
+        this.tokenRepository = tokenRepository;
     }
 
     @Transactional
@@ -93,15 +102,34 @@ public class UserService {
             // ✅ Assign role based on userRequest
             assignRoleToUser(savedUser, userRequest.getRole());
 
-            // ✅ Send email verification link
-            sendEmailVerification(savedUser);
-
             // ✅ Create the UserProfile entity
             UserProfile profile = new UserProfile();
             profile.setUser(savedUser);
             profile.setProfilePictureUrl(userRequest.getProfilePictureUrl());
+            profile.setFirstName(userRequest.getFirstName());
+            profile.setLastName(userRequest.getLastName());
             profile.setBio(userRequest.getBio());
             userProfileRepository.save(profile);
+
+            // ✅ Create the Token entity
+            Token token = new Token();
+            token.setUser(savedUser);
+            token.setUser_id(user.getId());
+            token.setTokenValue(UUID.randomUUID().toString());
+            token.setExpiryTime(LocalDateTime.now().plusHours(1));
+            tokenRepository.save(token);
+
+            // ✅ Create the AuditLog entity
+            AuditLog auditLog = new AuditLog();
+            auditLog.setUser(savedUser);
+            auditLog.setUser_id(user.getId());
+            auditLog.setUsername(user.getUsername());
+            auditLog.setAction("USER_CREATED");
+            auditLog.setTimestamp(LocalDateTime.now());
+            auditLogRepository.save(auditLog);
+
+            // ✅ Send email verification link
+            sendEmailVerification(savedUser);
 
             // ✅ Log the registration event
             logger.info("User registered successfully: {}", savedUser.getUsername());
@@ -201,8 +229,6 @@ public class UserService {
         return jwtUtil.generateToken(userDetails);
     }
     // ✅ Login a user and generate a JWT token
-
-
     public String loginUser(String username, String password) {
         try {
             // Check if user exists in DB and password matches
@@ -217,6 +243,8 @@ public class UserService {
 
             UserDetails userDetails = customUserDetailsService.loadUserByUsername(username); // Load user details once
             User user = findUserByUsername(username); //Retrieve the full user object
+
+            userActivityService.updateLastActivity(user.getId());
 
             // Check if the user's email is verified
             checkUserVerification(user);

@@ -19,10 +19,25 @@ public class Token {
     @Column(nullable = false)
     private LocalDateTime expiryTime; // Token expiry time
 
-    @Column(nullable = false)
-    private Long userId; // ID of the user associated with the token
+    @Column(nullable = false, insertable = false, updatable = false)
+    private Long user_id;
 
     private String sessionId;
 
-    // Getters and setters
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    public Token() {
+    }
+
+    public Token(Long id, String tokenValue, LocalDateTime expiryTime, String sessionId, Long user_id) {
+        this.id = id;
+        this.tokenValue = tokenValue;
+        this.expiryTime = expiryTime;
+        this.sessionId = sessionId;
+        this.user_id = user_id;
+    }
+
+    // Getters and setters (handled by Lombok @Data)
 }

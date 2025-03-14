@@ -8,11 +8,14 @@
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/controller/TokenController.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/controller/UserController.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/controller/UserProfileController.java
+/home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/AuditLogDTO.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/CustomUserDetails.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/ErrorDetails.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/LoginRequestDto.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/LoginResponseDto.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/PasswordResetDto.java
+/home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/TokenDTO.java
+/home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/UserProfileDTO.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/UserRequest.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/UserResponse.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/DuplicateUserException.java

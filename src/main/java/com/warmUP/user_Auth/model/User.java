@@ -65,9 +65,13 @@ public class User implements UserDetails {
     private String emailVerificationToken;
 
     private LocalDateTime emailVerificationTokenExpiry;
+
     // Relationship with UserProfile (One-to-One)
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private UserProfile userProfile;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Token> tokens;
 
     // Relationship with AuditLog (One-to-Many)
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
