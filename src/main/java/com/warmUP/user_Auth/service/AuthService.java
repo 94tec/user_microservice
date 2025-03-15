@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -279,6 +280,31 @@ public class AuthService {
         } else {
             logger.warn("User not found with username: {}", username);
             throw new UserNotFoundException("User not found with username: " + username);
+        }
+    }
+    public User findByEmail(String email) {
+        Optional<User> userOptional = userRepository.findByEmail(email);
+
+        if (userOptional.isPresent()) {
+            return userOptional.get();
+        } else {
+            logger.warn("User not found with username: {}", email);
+            throw new UserNotFoundException("User not found with username: " + email);
+
+        }
+    }
+
+    // Save a user to the database
+    public void save(User user) {
+        try {
+            userRepository.save(user);
+            logger.info("User saved successfully: {}", user.getEmail()); // Log success
+        } catch (DataAccessException e) {
+            logger.error("Failed to save user: {}", user.getEmail(), e); // Log error
+            throw new RuntimeException("Failed to save user due to a database error", e);
+        } catch (Exception e) {
+            logger.error("Unexpected error while saving user: {}", user.getEmail(), e); // Log unexpected errors
+            throw new RuntimeException("Unexpected error while saving user", e);
         }
     }
     // ✅ Delete a user by ID

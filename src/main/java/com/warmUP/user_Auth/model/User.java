@@ -44,6 +44,9 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private boolean active = true;
 
+    @Column(nullable = false)
+    private boolean isVerified = false;
+
     @Column(updatable = false) // createdAt should not be updated after creation
     private LocalDateTime createdAt;
 

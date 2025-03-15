@@ -1,8 +1,10 @@
 com/warmUP/user_Auth/exception/ServiceException.class
 com/warmUP/user_Auth/security/JwtRequestFilter.class
+com/warmUP/user_Auth/service/CustomOAuth2UserService.class
 com/warmUP/user_Auth/model/Token.class
 com/warmUP/user_Auth/service/UserProfileService.class
 com/warmUP/user_Auth/controller/TokenController.class
+com/warmUP/user_Auth/controller/OAuthController.class
 com/warmUP/user_Auth/exception/PasswordResetException.class
 com/warmUP/user_Auth/model/User.class
 com/warmUP/user_Auth/service/AuthService.class

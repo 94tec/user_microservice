@@ -1,5 +1,6 @@
 package com.warmUP.user_Auth.security;
 
+import com.warmUP.user_Auth.service.CustomOAuth2UserService;
 import com.warmUP.user_Auth.service.CustomUserDetailsService;
 import com.warmUP.user_Auth.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,10 @@ public class SecurityConfig {
     @Autowired
     private CustomUserDetailsService userDetailsService;
 
+    @Autowired
+    @Lazy
+    private CustomOAuth2UserService customOAuth2UserService;
+
     private final JwtRequestFilter jwtRequestFilter;
 
     @Autowired
@@ -49,25 +54,31 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable) // Disable CSRF for simplicity (enable in production)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/users/register").permitAll() // Allow unauthenticated access to POST /api/users/register
-                        .requestMatchers("/api/auth/users/login").permitAll() // Allow unauthenticated access to POST /api/users/login
-                        .requestMatchers("/api/auth/users/verify-email").permitAll() // Allow unauthenticated access to verify email
-                        .requestMatchers("/api/tokens/**").permitAll() // Allow unauthenticated access to token endpoints
-                        .requestMatchers("/api/users").authenticated()
-                        .requestMatchers("/api/users/**").authenticated() // Secure all other user endpoints
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN") // Admin-only endpoints
-                        .anyRequest().authenticated() // Secure all other endpoints
+                        .requestMatchers("/api/auth/users/register").permitAll()
+                        .requestMatchers("/api/auth/users/login").permitAll()
+                        .requestMatchers("/api/auth/users/verify-email").permitAll()
+                        .requestMatchers("/api/tokens/**").hasRole("ADMIN")
+                        .requestMatchers("/api/logs/**").hasRole("ADMIN")
+                        .requestMatchers("/api/users").hasRole("ADMIN")
+                        .requestMatchers("/api/users/**").hasAnyRole("ADMIN", "USER")
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .anyRequest().authenticated()
                 )
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)); // Stateless session management
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService)
+                        )
+                )
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
-        // Add JWT filter before UsernamePasswordAuthenticationFilter
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
+
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
