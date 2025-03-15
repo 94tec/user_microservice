@@ -52,9 +52,9 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable) // Disable CSRF for simplicity (enable in production)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/users/register").permitAll() // Allow unauthenticated access to POST /api/users/register
-                        .requestMatchers("/api/users/login").permitAll() // Allow unauthenticated access to POST /api/users/login
-                        .requestMatchers("/api/users/verify-email").permitAll() // Allow unauthenticated access to verify email
+                        .requestMatchers("/api/auth/users/register").permitAll() // Allow unauthenticated access to POST /api/users/register
+                        .requestMatchers("/api/auth/users/login").permitAll() // Allow unauthenticated access to POST /api/users/login
+                        .requestMatchers("/api/auth/users/verify-email").permitAll() // Allow unauthenticated access to verify email
                         .requestMatchers("/api/tokens/**").permitAll() // Allow unauthenticated access to token endpoints
                         .requestMatchers("/api/users").authenticated()
                         .requestMatchers("/api/users/**").authenticated() // Secure all other user endpoints

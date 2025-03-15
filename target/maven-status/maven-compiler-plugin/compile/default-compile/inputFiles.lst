@@ -3,7 +3,7 @@
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/config/EnvLoader.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/config/EnvVarChecker.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/controller/AuditLogController.java
-/home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/controller/LogoutController.java
+/home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/controller/AuthController.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/controller/SessionController.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/controller/TokenController.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/controller/UserController.java
@@ -45,6 +45,7 @@
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/security/MethodSecurityConfig.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/security/SecurityConfig.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/service/AuditLogService.java
+/home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/service/AuthService.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/service/CustomUserDetailsService.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/service/DatabaseService.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/service/EmailService.java

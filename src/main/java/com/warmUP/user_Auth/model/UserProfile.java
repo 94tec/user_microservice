@@ -1,5 +1,6 @@
 package com.warmUP.user_Auth.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.Getter;
@@ -23,7 +24,8 @@ public class UserProfile {
 
     // Relationship with User (One-to-One)
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", referencedColumnName = "id", nullable = false)
+    @JsonBackReference
     private User user;
 
     public UserProfile() {}
