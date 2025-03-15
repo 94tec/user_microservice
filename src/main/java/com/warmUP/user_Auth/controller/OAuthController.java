@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/oauth")
 public class OAuthController {
 
-    @GetMapping("/user")
+    @GetMapping()
     public ResponseEntity<OAuth2User> getUser(@AuthenticationPrincipal OAuth2User principal) {
         if (principal == null) {
             return ResponseEntity.notFound().build();

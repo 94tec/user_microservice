@@ -1,5 +1,6 @@
 package com.warmUP.user_Auth.service;
 
+import com.warmUP.user_Auth.model.Invoice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +27,7 @@ public class EmailService {
     public void sendVerificationEmail(String email, String verificationToken) {
         try {
             // Create the verification URL
-            String verificationUrl = "http://localhost:8080/api/users/verify-email?token=" + verificationToken;
+            String verificationUrl = "http://localhost:8080/api/auth/users/verify-email?token=" + verificationToken;
 
             // Create the email content
             String subject = "Verify Your Email Address";
@@ -46,6 +47,17 @@ public class EmailService {
             logger.error("Failed to send verification email to {}: {}", email, e.getMessage(), e);
             throw new RuntimeException("Failed to send verification email", e);
         }
+    }
+    public void sendInvoiceEmail(Long userId, Invoice invoice) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo("user-email@example.com"); // Fetch user email from UserService
+        message.setSubject("Invoice for Order #" + invoice.getOrderId());
+        message.setText("Thank you for your purchase! Your invoice amount is: $" + invoice.getTotalAmount());
+
+        mailSender.send(message);
+
+        // Mark invoice email as sent
+        invoice.setEmailSent(true);
     }
 
     /**
@@ -81,7 +93,7 @@ public class EmailService {
     public void sendPasswordResetEmail(String email, String token) {
         try {
             // Create the password reset URL
-            String resetUrl = "http://localhost:8080/api/users/reset-password?token=" + token;
+            String resetUrl = "http://localhost:8080/api/auth/users/reset-password?token=" + token;
 
             // Create the email content
             String subject = "Password Reset Request";
