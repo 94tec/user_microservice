@@ -46,4 +46,13 @@ public class AuditLog {
         this.timestamp = timestamp;
     }
 
+    @Override
+    public String toString() {
+        return "AuditLog{" +
+                "id=" + id +
+                ", action='" + action + '\'' +
+                ", timestamp=" + timestamp +
+                ", user_id=" + user_id +
+                '}';
+    }
 }

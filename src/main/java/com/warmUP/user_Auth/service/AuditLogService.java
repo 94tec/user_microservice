@@ -7,6 +7,7 @@ import com.warmUP.user_Auth.model.AuditLog;
 import com.warmUP.user_Auth.model.User;
 import com.warmUP.user_Auth.repository.AuditLogRepository;
 import com.warmUP.user_Auth.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
@@ -32,28 +33,28 @@ public class AuditLogService {
         this.userRepository = userRepository;
     }
 
+    @Transactional
     public void logAction(String action, String username) {
         try {
             userRepository.findByUsername(username)
-                    .map(user -> {
-                        AuditLog log = new AuditLog();
-                        log.setAction(action);
-                        log.setUsername(username);
-                        log.setTimestamp(LocalDateTime.now());
-                        log.setUser_id(user.getId());
-                        try {
-                            auditLogRepository.save(log);
-                            logger.info("Audit log saved successfully for user: {}, action: {}", username, action);
-                        } catch (DataAccessException e) {
-                            logger.error("Error saving audit log for user: {}, action: {}", username, action, e);
-                        }
-                        return null;
-                    })
-                    .orElseGet(() -> {
-                        logger.warn("User not found: {}", username);
-                        return null;
-                    });
+                    .ifPresentOrElse(
+                            user -> {
+                                AuditLog log = new AuditLog();
+                                log.setUser(user);
+                                log.setAction(action);
+                                log.setUsername(user.getUsername());
+                                log.setTimestamp(LocalDateTime.now());
+                                log.setUser_id(user.getId());
 
+                                try {
+                                    auditLogRepository.save(log);
+                                    logger.info("Audit log saved successfully for user: {}, action: {}", username, action);
+                                } catch (DataAccessException e) {
+                                    logger.error("Error saving audit log for user: {}, action: {}", username, action, e);
+                                }
+                            },
+                            () -> logger.warn("User not found: {}", username)
+                    );
         } catch (Exception e) {
             logger.error("An unexpected error occurred while logging action for user: {}", username, e);
         }

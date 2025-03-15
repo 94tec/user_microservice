@@ -61,6 +61,9 @@ public class UserService {
     private AuditLogService auditLogService;
 
     @Autowired
+    private TokenService tokenService;
+
+    @Autowired
     private  UserActivityService userActivityService;
 
     @Autowired
@@ -111,13 +114,6 @@ public class UserService {
             profile.setBio(userRequest.getBio());
             userProfileRepository.save(profile);
 
-            // ✅ Create the Token entity
-            Token token = new Token();
-            token.setUser(savedUser);
-            token.setUser_id(user.getId());
-            token.setTokenValue(UUID.randomUUID().toString());
-            token.setExpiryTime(LocalDateTime.now().plusHours(1));
-            tokenRepository.save(token);
 
             // ✅ Create the AuditLog entity
             AuditLog auditLog = new AuditLog();
@@ -229,6 +225,7 @@ public class UserService {
         return jwtUtil.generateToken(userDetails);
     }
     // ✅ Login a user and generate a JWT token
+    @Transactional
     public String loginUser(String username, String password) {
         try {
             // Check if user exists in DB and password matches
@@ -238,24 +235,30 @@ public class UserService {
             }
 
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
-            // Log the login action
-            auditLogService.logAction("LOGIN", "User " + username + " signed in");
 
             UserDetails userDetails = customUserDetailsService.loadUserByUsername(username); // Load user details once
             User user = findUserByUsername(username); //Retrieve the full user object
+
+            // Log the login action
+            logger.info("User '{}' logged in successfully.", username);
+            auditLogService.logAction("LOGIN", username );
 
             userActivityService.updateLastActivity(user.getId());
 
             // Check if the user's email is verified
             checkUserVerification(user);
+            String accessToken = jwtUtil.generateToken(userDetails);
+            String refreshToken = tokenService.generateRefreshToken(user);
 
-            return jwtUtil.generateToken(userDetails);
+            return accessToken + "," + refreshToken;
+
         } catch (BadCredentialsException e) {
             logger.warn("Login attempt failed for user: {}", username, e);
             throw new BadCredentialsException("Invalid username or password");
         }
 
     }
+
     public boolean isUserAvailable(String username, String password) {
         // Find user in DB
         User user = userRepository.findByUsername(username).orElse(null);
@@ -365,6 +368,8 @@ public class UserService {
         // Save the updated user
         User updatedUser = userRepository.save(user);
         logger.info("User updated successfully with ID: {}", id);
+        // Log the email verification action
+        auditLogService.logAction("USER_UPDATED", user.getUsername());
         return updatedUser;
     }
 
@@ -480,6 +485,8 @@ public class UserService {
             // Save the updated user
             User savedUser = userRepository.save(user);
             logger.info("Password reset successfully for user: {}", savedUser.getEmail());
+            // Log the reset password action
+            auditLogService.logAction("PASSWORD_RESET", user.getUsername());
             return savedUser; // Return the updated user object
         } catch (Exception ex) {
             logger.error("Unexpected error resetting password: {}", ex.getMessage(), ex);
@@ -550,6 +557,9 @@ public class UserService {
             user.setEmailVerified(true);
             userRepository.save(user);
             logger.info("Email verified successfully for user: {}", user.getEmail());
+
+            // Log the email verification action
+            auditLogService.logAction("EMAIL_VERIFIED", username);
         } catch (JwtException ex) {
             logger.error("Token validation failed: {}", ex.getMessage());
             throw new InvalidTokenException("Token validation failed: " + ex.getMessage());
@@ -559,9 +569,8 @@ public class UserService {
         }
     }
 
-    public void logoutUser() {
+    public void logoutCurrentUser() {
         try {
-            // Get the current authentication object
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
             if (authentication == null) {
@@ -569,16 +578,41 @@ public class UserService {
                 throw new ResourceNotFoundException("No user is currently authenticated.");
             }
 
-            // Perform logout (invalidate session, clear security context, etc.)
+            String username = authentication.getName();
+
+            // Invalidate refresh tokens
+            tokenRepository.deleteByUserId(userRepository.findByUsername(username).get().getId());
+
             SecurityContextHolder.clearContext();
-            logger.info("User '{}' has been logged out successfully.", authentication.getName());
+            logger.info("User '{}' has been logged out successfully.", username);
+            auditLogService.logAction("LOGOUT", username);
 
         } catch (ResourceNotFoundException e) {
             logger.error("Logout failed: {}", e.getMessage());
-            throw e; // Re-throw for global exception handling
+            throw e;
         } catch (Exception e) {
             logger.error("An unexpected error occurred during logout: {}", e.getMessage(), e);
             throw new ServiceException("An unexpected error occurred during logout.", e);
+        }
+    }
+
+    public void logoutSpecificUser(String username) {
+        try {
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new UserNotFoundException("User not found with username: " + username));
+
+            // Invalidate refresh tokens
+            tokenRepository.deleteByUserId(user.getId());
+
+            logger.info("User logged out successfully: {}", username);
+            auditLogService.logAction("LOGOUT", username);
+
+        } catch (UserNotFoundException e) {
+            logger.error("Logout failed: {}", e.getMessage());
+            throw e;
+        } catch (Exception ex) {
+            logger.error("Unexpected error during logout for user: {}", username, ex);
+            throw new ServiceException("Unexpected error during logout: " + ex.getMessage(), ex);
         }
     }
 

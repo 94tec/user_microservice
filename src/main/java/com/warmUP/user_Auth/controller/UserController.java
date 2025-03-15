@@ -66,10 +66,16 @@ public class UserController {
     public ResponseEntity<?> loginUser(@RequestBody LoginRequestDto loginRequestDto) {
         try {
             // ✅ Use loginUser service method
-            String jwt = userService.loginUser(loginRequestDto.getUsername(), loginRequestDto.getPassword());
+            String tokens = userService.loginUser(loginRequestDto.getUsername(), loginRequestDto.getPassword());
+
+            // Split the returned string to get access and refresh tokens
+            String[] tokenArray = tokens.split(",");
+            String jwt = tokenArray[0];
+            String refreshToken = tokenArray[1];
 
             LoginResponseDto response = new LoginResponseDto();
             response.setToken(jwt);
+            response.setRefreshToken(refreshToken);
             return ResponseEntity.ok(response);
 
         } catch (IllegalStateException e) {
@@ -99,29 +105,6 @@ public class UserController {
             logger.error("Unexpected error: {}", ex.getMessage(), ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "An unexpected error occurred: " + ex.getMessage(), "status", HttpStatus.INTERNAL_SERVER_ERROR.toString()));
-        }
-    }
-
-    @PostMapping("/logout")
-    public ResponseEntity<?> logoutUser() {
-        try {
-            // Call the logout service
-            userService.logoutUser();
-
-            // Return success response
-            return ResponseEntity.ok("User logged out successfully.");
-
-        } catch (ResourceNotFoundException e) {
-            // Handle case where no user is authenticated
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-
-        } catch (ServiceException e) {
-            // Handle service-level errors
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
-
-        } catch (Exception e) {
-            // Handle unexpected errors
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred during logout.");
         }
     }
 
@@ -289,6 +272,21 @@ public class UserController {
             logger.error("Email already verified: {}", ex.getMessage());
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(Map.of("error", ex.getMessage(), "status", HttpStatus.CONFLICT.toString()));
+        } catch (Exception ex) {
+            logger.error("Unexpected error: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "An unexpected error occurred: " + ex.getMessage(), "status", HttpStatus.INTERNAL_SERVER_ERROR.toString()));
+        }
+    }
+    @PostMapping("/logout")
+    public ResponseEntity<?> logoutUser(@RequestParam String username) {
+        try {
+            userService.logoutSpecificUser(username);
+            return ResponseEntity.ok(Map.of("message", "User logged out successfully"));
+        } catch (UserNotFoundException ex) {
+            logger.error("User not found: {}", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", ex.getMessage(), "status", HttpStatus.NOT_FOUND.toString()));
         } catch (Exception ex) {
             logger.error("Unexpected error: {}", ex.getMessage(), ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

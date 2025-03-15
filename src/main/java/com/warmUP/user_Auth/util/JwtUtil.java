@@ -1,8 +1,10 @@
 package com.warmUP.user_Auth.util;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
@@ -14,11 +16,15 @@ import java.util.function.Function;
 
 @Component
 public class JwtUtil {
+    private static final Logger logger = LoggerFactory.getLogger(JwtUtil.class);
 
     private final SecretKey secretKey;
 
-    // Token expiration time (10 hours)
-    private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 10;
+    @Value("${jwt.expiration.time}")
+    private long expirationTime;
+
+    @Value("${jwt.refresh.expiration.time}")
+    private long refreshExpirationTime;
 
     public JwtUtil() {
         // Automatically generate a secure key for HS256
@@ -33,7 +39,10 @@ public class JwtUtil {
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", userDetails.getAuthorities()); // Add user role to claims
-        return createToken(claims, userDetails.getUsername());
+        return createToken(claims, userDetails.getUsername(), expirationTime);
+    }
+    public String generateRefreshToken(UserDetails userDetails) {
+        return createToken(new HashMap<>(), userDetails.getUsername(), refreshExpirationTime);
     }
     /**
      * Generates a JWT token for email verification.
@@ -43,7 +52,7 @@ public class JwtUtil {
      */
     public String generateToken(String email) {
         Map<String, Object> claims = new HashMap<>();
-        return createToken(claims, email);
+        return createToken(claims, email, expirationTime);
     }
 
     /**
@@ -53,12 +62,15 @@ public class JwtUtil {
      * @param subject The subject (e.g., username or email) to include in the token.
      * @return The generated JWT token.
      */
-    private String createToken(Map<String, Object> claims, String subject) {
+    private String createToken(Map<String, Object> claims, String subject, long expiration) {
+        Date now = new Date(System.currentTimeMillis());
+        Date validity = new Date(now.getTime() + expiration);
+        logger.debug("Generating token for subject: {}", subject);
         return Jwts.builder()
                 .setClaims(claims) // Set custom claims (if any)
                 .setSubject(subject) // Set the subject (username)
-                .setIssuedAt(new Date(System.currentTimeMillis())) // Set the issue date
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME)) // Set the expiration date
+                .setIssuedAt(now) // Set the issue date
+                .setExpiration(validity) // Set the expiration date
                 .signWith(secretKey) // Sign the token with the secure key
                 .compact(); // Build the token
     }
@@ -87,11 +99,25 @@ public class JwtUtil {
 
     // Extract all claims from JWT token
     private Claims extractAllClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(secretKey) // Set the signing key for verification
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(secretKey)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (ExpiredJwtException e) {
+            logger.warn("Token expired: {}", e.getMessage());
+            throw new JwtException("Token has expired.");
+        } catch (MalformedJwtException e) {
+            logger.warn("Malformed token: {}", e.getMessage());
+            throw new JwtException("Invalid token format.");
+        } catch (IncorrectClaimException e) {
+            logger.warn("Invalid token signature: {}", e.getMessage());
+            throw new JwtException("Invalid token signature.");
+        } catch (Exception e) {
+            logger.error("Error parsing token: {}", e.getMessage());
+            throw new JwtException("Failed to parse token.");
+        }
     }
 
     // Check if token is expired

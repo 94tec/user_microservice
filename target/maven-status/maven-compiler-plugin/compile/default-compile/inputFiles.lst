@@ -14,7 +14,6 @@
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/LoginRequestDto.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/LoginResponseDto.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/PasswordResetDto.java
-/home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/TokenDTO.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/UserProfileDTO.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/UserRequest.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/UserResponse.java

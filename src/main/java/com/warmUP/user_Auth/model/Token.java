@@ -5,8 +5,9 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
+
 @Entity
-@Table(name = "token")
+@Table(name = "refresh_tokens")
 @Data
 public class Token {
     @Id
@@ -22,7 +23,7 @@ public class Token {
     @Column(nullable = false, insertable = false, updatable = false)
     private Long user_id;
 
-    private String sessionId;
+    private  boolean revoked;
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
@@ -31,13 +32,12 @@ public class Token {
     public Token() {
     }
 
-    public Token(Long id, String tokenValue, LocalDateTime expiryTime, String sessionId, Long user_id) {
+    public Token(Long id, String tokenValue, LocalDateTime expiryTime, Long user_id) {
         this.id = id;
         this.tokenValue = tokenValue;
         this.expiryTime = expiryTime;
-        this.sessionId = sessionId;
         this.user_id = user_id;
     }
 
-    // Getters and setters (handled by Lombok @Data)
+
 }

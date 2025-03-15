@@ -1,7 +1,6 @@
 // TokenService.java
 package com.warmUP.user_Auth.service;
 
-import com.warmUP.user_Auth.dto.TokenDTO;
 import com.warmUP.user_Auth.model.Token;
 import com.warmUP.user_Auth.model.User;
 import com.warmUP.user_Auth.repository.TokenRepository;
@@ -30,18 +29,24 @@ public class TokenService {
     @Value("${token.expiry.hours:1}") // Default to 1 hour
     private int tokenExpiryHours;
 
-    public TokenDTO generateToken(User user) {
+    public String generateRefreshToken(User user) {
         String tokenValue = UUID.randomUUID().toString();
-        LocalDateTime expiryTime = LocalDateTime.now().plusHours(tokenExpiryHours);
+        // LocalDateTime expiryTime = LocalDateTime.now().plusHours(tokenExpiryHours);
 
         Token token = new Token();
+        token.setUser(user);
         token.setTokenValue(tokenValue);
-        token.setExpiryTime(expiryTime);
+        token.setExpiryTime(LocalDateTime.now().plusHours(1));
         token.setUser_id(user.getId());
+        token.setRevoked(false);
 
-        Token savedToken = tokenRepository.save(token);
-        auditLogService.logAction("TOKEN_GENERATED", "Token generated for user " + user.getUsername());
-        return convertToDTO(savedToken);
+        // Save the refresh token
+        tokenRepository.save(token);
+
+        // Log the token generation action
+        logger.info("Refresh token generated for user: {}", user.getUsername());
+        auditLogService.logAction("TOKEN_GENERATED", user.getUsername());
+        return tokenValue;
     }
 
     public boolean validateToken(String tokenValue) {
@@ -70,9 +75,4 @@ public class TokenService {
         }
     }
 
-    private TokenDTO convertToDTO(Token token) {
-        TokenDTO dto = new TokenDTO();
-        BeanUtils.copyProperties(token, dto);
-        return dto;
-    }
 }
