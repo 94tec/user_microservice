@@ -88,6 +88,12 @@ public class GlobalExceptionHandler {
         ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
         return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
     }
+    @ExceptionHandler(InvalidPaginationParameterException.class)
+    public ResponseEntity<?> handleInvalidPaginationParameterException(InvalidPaginationParameterException ex, WebRequest request) {
+        logger.error("InvalidPaginationParameterException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
+    }
 
     // Handle AccessDeniedException
     @ExceptionHandler(AccessDeniedException.class)

@@ -27,6 +27,7 @@
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/DuplicateUserException.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/EmailAlreadyVerifiedException.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/GlobalExceptionHandler.java
+/home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/InvalidPaginationParameterException.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/InvalidTokenException.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/InvalidUserDetailsException.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/InvalidUserIdException.java

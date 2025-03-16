@@ -282,6 +282,28 @@ public class AuthService {
             throw new UserNotFoundException("User not found with username: " + username);
         }
     }
+    // Get a user by username
+    public User getUserByUsername(String username) {
+        logger.info("Fetching user by username: {}", username);
+
+        // Validate the username
+        if (username == null || username.trim().isEmpty()) {
+            logger.error("Username cannot be null or empty");
+            throw new IllegalArgumentException("Username cannot be null or empty");
+        }
+
+        // Fetch the user from the repository
+        Optional<User> userOptional = userRepository.findByUsername(username);
+
+        // Check if the user exists
+        if (userOptional.isEmpty()) {
+            logger.error("User not found with username: {}", username);
+            throw new ResourceNotFoundException("User not found with username: " + username);
+        }
+
+        return userOptional.get();
+    }
+
     public User findByEmail(String email) {
         Optional<User> userOptional = userRepository.findByEmail(email);
 

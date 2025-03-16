@@ -58,6 +58,7 @@ com/warmUP/user_Auth/exception/GlobalExceptionHandler.class
 com/warmUP/user_Auth/security/CustomPermissionEvaluator.class
 com/warmUP/user_Auth/model/Invoice.class
 com/warmUP/user_Auth/model/Role.class
+com/warmUP/user_Auth/exception/InvalidPaginationParameterException.class
 com/warmUP/user_Auth/service/AuditLogService.class
 com/warmUP/user_Auth/UserAuthApplication.class
 com/warmUP/user_Auth/exception/InvalidTokenException.class

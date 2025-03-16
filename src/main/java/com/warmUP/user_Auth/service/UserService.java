@@ -104,6 +104,24 @@ public class UserService {
             throw e;
         }
     }
+    // ✅ Get a user by ID
+    public UserDTO findUserById(Long id) {
+        // Validate the ID
+        if (id == null || id <= 0) {
+            logger.error("Invalid user ID: {}", id);
+            throw new InvalidUserIdException("Invalid user ID: " + id);
+        }
+
+        // Retrieve the user from the repository
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> {
+                    logger.error("User not found with ID: {}", id);
+                    return new UserNotFoundException("User not found with ID: " + id);
+                });
+
+        // Map the User entity to UserDTO
+        return mapToUserDTO(user);
+    }
     private UserDTO mapToUserDTO(User user) {
         UserDTO userDTO = new UserDTO();
         userDTO.setId(user.getId());
@@ -131,22 +149,6 @@ public class UserService {
         }
 
         return userDTO;
-    }
-
-    // ✅ Get a user by ID
-    public User getUserById(Long id) {
-        // Validate the ID
-        if (id == null || id <= 0) {
-            logger.error("Invalid user ID: {}", id);
-            throw new InvalidUserIdException("Invalid user ID: " + id);
-        }
-
-        // Retrieve the user from the repository
-        return userRepository.findById(id)
-                .orElseThrow(() -> {
-                    logger.error("User not found with ID: {}", id);
-                    return new UserNotFoundException("User not found with ID: " + id);
-                });
     }
 
     public User updateUser(Long id, User userDetails) {
@@ -205,6 +207,27 @@ public class UserService {
         if (userDetails.getRole() != null) {
             user.setRole(userDetails.getRole());
         }
+    }
+    // Get a user by ID
+    public User getUserById(Long id) {
+        logger.info("Fetching user by ID: {}", id);
+
+        // Validate the ID
+        if (id == null || id <= 0) {
+            logger.error("Invalid user ID: {}", id);
+            throw new InvalidUserIdException("Invalid user ID: " + id);
+        }
+
+        // Fetch the user from the repository
+        Optional<User> userOptional = userRepository.findById(id);
+
+        // Check if the user exists
+        if (userOptional.isEmpty()) {
+            logger.error("User not found with ID: {}", id);
+            throw new ResourceNotFoundException("User not found with ID: " + id);
+        }
+
+        return userOptional.get();
     }
 
 }
