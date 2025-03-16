@@ -1,9 +1,11 @@
 package com.warmUP.user_Auth.controller;
 
+import com.warmUP.user_Auth.dto.UserDTO;
 import com.warmUP.user_Auth.exception.*;
 import com.warmUP.user_Auth.model.User;
 import com.warmUP.user_Auth.service.EmailService;
 import com.warmUP.user_Auth.service.UserService;
+import org.hibernate.annotations.Parameter;
 import org.hibernate.service.spi.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,36 +63,11 @@ public class UserController {
 
     // ✅ Get (Access list users)
     @GetMapping
-    public ResponseEntity<?> getAllUsers(
+    public ResponseEntity<List<UserDTO>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        try {
-            // Fetch users with pagination
-            List<User> users = userService.getAllUsers(page, size);
-
-            // Return users with HTTP 200 OK
-            return ResponseEntity.ok(users);
-
-        } catch (ResourceNotFoundException e) {
-            // Handle empty database case (HTTP 204 No Content)
-            return ResponseEntity.status(HttpStatus.NO_CONTENT).body(e.getMessage());
-
-        } catch (AccessDeniedException e) {
-            // Handle permission issues (HTTP 403 Forbidden)
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
-
-        } catch (IllegalArgumentException e) {
-            // Handle invalid input (HTTP 400 Bad Request)
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-
-        } catch (ServiceException e) {
-            // Handle database or service errors (HTTP 500 Internal Server Error)
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
-
-        } catch (Exception e) {
-            // Handle any other unexpected errors (HTTP 500 Internal Server Error)
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred.");
-        }
+        List<UserDTO> users = userService.getAllUsers(page, size);
+        return ResponseEntity.ok(users);
     }
 
     // ✅ GET: Retrieve a user by ID

@@ -37,6 +37,7 @@ com/warmUP/user_Auth/model/AuditLog.class
 com/warmUP/user_Auth/controller/SessionController.class
 com/warmUP/user_Auth/exception/EmailAlreadyVerifiedException.class
 com/warmUP/user_Auth/exception/UserNotFoundException.class
+com/warmUP/user_Auth/exception/CustomException.class
 com/warmUP/user_Auth/controller/AuthController.class
 com/warmUP/user_Auth/model/UserProfile.class
 com/warmUP/user_Auth/service/OrderService.class
@@ -49,6 +50,7 @@ com/warmUP/user_Auth/repository/ProductRepository.class
 com/warmUP/user_Auth/service/EmailService.class
 com/warmUP/user_Auth/repository/TokenRepository.class
 com/warmUP/user_Auth/repository/AuditLogRepository.class
+com/warmUP/user_Auth/dto/UserDTO.class
 com/warmUP/user_Auth/security/SecurityConfig.class
 com/warmUP/user_Auth/service/CustomUserDetailsService.class
 com/warmUP/user_Auth/dto/UserResponse.class

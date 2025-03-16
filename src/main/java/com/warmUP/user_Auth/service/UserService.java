@@ -1,5 +1,7 @@
 package com.warmUP.user_Auth.service;
 
+import com.warmUP.user_Auth.dto.UserDTO;
+import com.warmUP.user_Auth.dto.UserProfileDTO;
 import com.warmUP.user_Auth.exception.*;
 import com.warmUP.user_Auth.model.*;
 import com.warmUP.user_Auth.repository.UserRepository;
@@ -22,10 +24,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -53,48 +55,82 @@ public class UserService {
 
     // ✅ Get all users
     @PreAuthorize("hasRole('ADMIN')")
-    public List<User> getAllUsers(int page, int size) {
-        logger.info("Fetching users with page={} and size={}", page, size);
+    public List<UserDTO> getAllUsers(int page, int size) {
+        logger.info("Fetching users with page={}, size={}", page, size);
+
         try {
-            // 5. Pagination to handle large datasets
+            // Validate pagination parameters
+            if (page < 0 || size <= 0) {
+                logger.error("Invalid pagination parameters: page={}, size={}", page, size);
+                throw new IllegalArgumentException("Page must be >= 0 and size must be > 0.");
+            }
+
+            // Pagination
             Pageable pageable = PageRequest.of(page, size);
             Page<User> userPage = userRepository.findAll(pageable);
 
-            // 2. Check for empty database
+            // Check for empty database
             if (userPage.isEmpty()) {
                 logger.warn("No users found.");
                 throw new ResourceNotFoundException("No users found.");
             }
 
-            // 7. Use DTOs to avoid serialization issues (not shown here, but recommended)
-            List<User> users = userPage.getContent();
+            // Map User entities to UserDTOs
+            List<UserDTO> userDTOs = userPage.getContent().stream()
+                    .map(this::mapToUserDTO)
+                    .collect(Collectors.toList());
 
-            return users;
+            logger.info("Retrieved {} users from the database.", userPage.getNumberOfElements());
+            return userDTOs;
 
         } catch (DataAccessException e) {
-            // 1. Database connection issues
-            logger.error("Error fetching users from the database.\", e");
+            logger.error("Error fetching users from the database.", e);
             throw new ServiceException("Error fetching users from the database.", e);
 
         } catch (AccessDeniedException e) {
-            // 4. Permission or authorization issues
             logger.error("You do not have permission to access this resource.", e);
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to access this resource.", e);
+            throw new CustomException(HttpStatus.FORBIDDEN, "You do not have permission to access this resource.");
 
         } catch (IllegalArgumentException e) {
-            // 8. Invalid user input (e.g., invalid pagination parameters)
             logger.error("Invalid pagination parameters.", e);
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid pagination parameters.", e);
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Invalid pagination parameters.");
 
         } catch (ResourceNotFoundException e) {
-            // 2. Empty database
             logger.error("NO CONTENT.", e);
-            throw new ResponseStatusException(HttpStatus.NO_CONTENT, e.getMessage());
+            throw new CustomException(HttpStatus.NO_CONTENT, e.getMessage());
 
         } catch (Exception e) {
             logger.error("Error fetching users: {}", e.getMessage(), e);
             throw e;
         }
+    }
+    private UserDTO mapToUserDTO(User user) {
+        UserDTO userDTO = new UserDTO();
+        userDTO.setId(user.getId());
+        userDTO.setUsername(user.getUsername());
+        userDTO.setFirstName(user.getFirstName());
+        userDTO.setLastName(user.getLastName());
+        userDTO.setEmail(user.getEmail());
+        userDTO.setEmailVerified(user.isEmailVerified());
+        userDTO.setActive(user.isActive());
+        userDTO.setCreatedAt(user.getCreatedAt());
+        userDTO.setUpdatedAt(user.getUpdatedAt());
+        userDTO.setLastActivity(user.getLastActivity());
+        userDTO.setProvider(user.getProvider());
+        userDTO.setProviderId(user.getProviderId());
+
+        // Map UserProfile to UserProfileDTO
+        if (user.getUserProfile() != null) {
+            UserProfileDTO userProfileDTO = new UserProfileDTO();
+            userProfileDTO.setFirstName(user.getUserProfile().getFirstName());
+            userProfileDTO.setLastName(user.getUserProfile().getLastName());
+            userProfileDTO.setProfilePictureUrl(user.getUserProfile().getProfilePictureUrl());
+            userProfileDTO.setBio(user.getUserProfile().getBio());
+            userProfileDTO.setPublic(user.getUserProfile().isPublic());
+            userDTO.setUserProfile(userProfileDTO);
+        }
+
+        return userDTO;
     }
 
     // ✅ Get a user by ID

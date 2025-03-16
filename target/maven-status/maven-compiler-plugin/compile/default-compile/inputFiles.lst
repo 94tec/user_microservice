@@ -19,9 +19,11 @@
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/LoginRequestDto.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/LoginResponseDto.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/PasswordResetDto.java
+/home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/UserDTO.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/UserProfileDTO.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/UserRequest.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/dto/UserResponse.java
+/home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/CustomException.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/DuplicateUserException.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/EmailAlreadyVerifiedException.java
 /home/tech/warmUP/user_Auth/src/main/java/com/warmUP/user_Auth/exception/GlobalExceptionHandler.java

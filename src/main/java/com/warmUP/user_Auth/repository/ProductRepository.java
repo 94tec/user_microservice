@@ -15,7 +15,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     List<Product> findByStockQuantityGreaterThan(int stockQuantity);
 
-    List<Product> findByPriceRange(double minPrice, double maxPrice);
+    List<Product> findByPriceBetween(double minPrice, double maxPrice);
 
     @Query("SELECT p FROM Product p WHERE " +
             "(:brand IS NULL OR LOWER(p.brand) LIKE LOWER(CONCAT('%', :brand, '%'))) AND " +
@@ -28,5 +28,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("minPrice") Double minPrice,
             @Param("maxPrice") Double maxPrice,
             @Param("categoryId") Long categoryId,
-            @Param("stockQuantity") Integer stockQuantity);
+            @Param("stockQuantity") Integer stockQuantity
+    );
 }

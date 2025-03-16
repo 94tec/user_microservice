@@ -36,7 +36,7 @@ public class ProductService {
 
     // Filter by price range
     public List<Product> filterByPriceRange(double minPrice, double maxPrice) {
-        return productRepository.findByPriceRange(minPrice, maxPrice);
+        return productRepository.findByPriceBetween(minPrice, maxPrice);
     }
 
     // Filter by category
