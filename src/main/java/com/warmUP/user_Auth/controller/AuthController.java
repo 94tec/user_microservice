@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.Map;
 
 @RestController
@@ -69,11 +70,65 @@ public class AuthController {
             return ResponseEntity.ok(response);
 
         } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Email not verified");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(Map.of(
+                    "error", "Email not verified: " + e.getMessage(),
+                    "status", HttpStatus.FORBIDDEN.value(),
+                    "timestamp", Instant.now().toString()
+            ));
         } catch (BadCredentialsException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+             .body(Map.of(
+                    "error", "Invalid username or password: " + e.getMessage(),
+                    "status", HttpStatus.UNAUTHORIZED.value(),
+                    "timestamp", Instant.now().toString()
+            ));
         }
     }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<Map<String, Object>> changePassword(@RequestBody PasswordChangeRequest changeRequest) {
+        try {
+            authService.changePassword(changeRequest);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Password changed successfully.",
+                    "status", HttpStatus.OK.value()
+            ));
+        } catch (UserNotFoundException ex) {
+            logger.error("User not found: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of(
+                            "error", "User not found: " + ex.getMessage(),
+                            "status", HttpStatus.NOT_FOUND.value(),
+                            "timestamp", Instant.now().toString()
+                    ));
+        } catch (InvalidPasswordException ex) {
+            logger.error("Invalid old password: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of(
+                            "error", "Invalid old password: " + ex.getMessage(),
+                            "status", HttpStatus.UNAUTHORIZED.value(),
+                            "timestamp", Instant.now().toString()
+                    ));
+        } catch (PasswordMismatchException ex) {
+            logger.error("New passwords do not match: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of(
+                            "error", "New passwords do not match: " + ex.getMessage(),
+                            "status", HttpStatus.BAD_REQUEST.value(),
+                            "timestamp", Instant.now().toString()
+                    ));
+        } catch (Exception ex) {
+            logger.error("Unexpected error: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "error", "Unexpected error: " + ex.getMessage(),
+                            "status", HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                            "timestamp", Instant.now().toString()
+                    ));
+        }
+    }
+
 
     // ✅ DELETE: Delete a user by ID
     @DeleteMapping("/{id}")
@@ -90,6 +145,7 @@ public class AuthController {
         }
 
     }
+
 
     // ✅ POST: Generate password reset token
     @PostMapping("/generate-password-reset-token")
@@ -130,6 +186,12 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "An unexpected error occurred: " + ex.getMessage(), "status", HttpStatus.INTERNAL_SERVER_ERROR.toString()));
         }
+    }
+    // reset password forced by Admin
+    @PostMapping("/password-reset")
+    public ResponseEntity<String> resetPassword(@RequestBody PasswordResetRequest resetRequest) {
+        authService.resetPasswordForcedByAdmin(resetRequest);
+        return ResponseEntity.ok("Password reset successfully.");
     }
     // ✅ POST: Register with social login
     @PostMapping("/register/social")

@@ -59,6 +59,10 @@ public class User implements UserDetails {
 
     private String providerId; // Unique ID from the provider
 
+    private boolean forcePasswordReset;
+
+    private String temporaryPassword;
+    private LocalDateTime temporaryPasswordExpiry;
     // Password reset fields
     private String passwordResetToken;
 

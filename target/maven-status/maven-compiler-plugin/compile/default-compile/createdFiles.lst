@@ -1,4 +1,5 @@
 com/warmUP/user_Auth/model/CartItem.class
+com/warmUP/user_Auth/controller/AdminUserController.class
 com/warmUP/user_Auth/exception/ServiceException.class
 com/warmUP/user_Auth/security/JwtRequestFilter.class
 com/warmUP/user_Auth/service/CategoryService.class
@@ -9,6 +10,7 @@ com/warmUP/user_Auth/controller/TokenController.class
 com/warmUP/user_Auth/controller/OAuthController.class
 com/warmUP/user_Auth/exception/PasswordResetException.class
 com/warmUP/user_Auth/model/Category.class
+com/warmUP/user_Auth/exception/UnauthorizedException.class
 com/warmUP/user_Auth/model/User.class
 com/warmUP/user_Auth/service/AuthService.class
 com/warmUP/user_Auth/repository/CategoryRepository.class
@@ -39,6 +41,7 @@ com/warmUP/user_Auth/exception/EmailAlreadyVerifiedException.class
 com/warmUP/user_Auth/exception/UserNotFoundException.class
 com/warmUP/user_Auth/exception/CustomException.class
 com/warmUP/user_Auth/controller/AuthController.class
+com/warmUP/user_Auth/service/AdminUserService.class
 com/warmUP/user_Auth/model/UserProfile.class
 com/warmUP/user_Auth/service/OrderService.class
 com/warmUP/user_Auth/exception/InvalidUserProfileException.class

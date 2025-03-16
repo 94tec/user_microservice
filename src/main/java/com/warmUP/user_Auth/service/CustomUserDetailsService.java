@@ -1,5 +1,6 @@
 package com.warmUP.user_Auth.service;
 
+import com.warmUP.user_Auth.exception.ForcePasswordResetException;
 import com.warmUP.user_Auth.model.User;
 import com.warmUP.user_Auth.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,10 @@ public class CustomUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
+
+        if (user.isForcePasswordReset()) {
+            throw new ForcePasswordResetException("You must reset your password before logging in.");
+        }
 
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(), // Username

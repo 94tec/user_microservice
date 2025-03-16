@@ -1,5 +1,7 @@
 package com.warmUP.user_Auth.service;
 
+import com.warmUP.user_Auth.dto.PasswordChangeRequest;
+import com.warmUP.user_Auth.dto.PasswordResetRequest;
 import com.warmUP.user_Auth.dto.UserRequest;
 import com.warmUP.user_Auth.dto.UserResponse;
 import com.warmUP.user_Auth.exception.*;
@@ -23,6 +25,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -51,6 +54,7 @@ public class AuthService {
     private final AuditLogService auditLogService;
     private final TokenService tokenService;
     private final UserActivityService userActivityService;
+    private final PasswordResetRequest passwordResetRequest;
 
     @Autowired
     @Lazy // Add this annotation
@@ -64,7 +68,7 @@ public class AuthService {
             UserProfileRepository userProfileRepository,
             AuditLogRepository auditLogRepository, TokenRepository tokenRepository,
             UserActivityService userActivityService, AuditLogService auditLogService,
-            TokenService tokenService
+            TokenService tokenService, PasswordResetRequest passwordResetRequest
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -78,6 +82,7 @@ public class AuthService {
         this.userActivityService = userActivityService;
         this.auditLogService = auditLogService;
         this.tokenService = tokenService;
+        this.passwordResetRequest = passwordResetRequest;
     }
 
     @Transactional
@@ -98,24 +103,11 @@ public class AuthService {
             // ✅ Assign role based on userRequest
             assignRoleToUser(savedUser, userRequest.getRole());
 
-            // ✅ Create the UserProfile entity
-            UserProfile profile = new UserProfile();
-            profile.setUser(savedUser);
-            profile.setProfilePictureUrl(userRequest.getProfilePictureUrl());
-            profile.setFirstName(userRequest.getFirstName());
-            profile.setLastName(userRequest.getLastName());
-            profile.setBio(userRequest.getBio());
-            userProfileRepository.save(profile);
+            // Create and save profile
+            createUserProfile(savedUser, userRequest);
 
-
-            // ✅ Create the AuditLog entity
-            AuditLog auditLog = new AuditLog();
-            auditLog.setUser(savedUser);
-            auditLog.setUser_id(user.getId());
-            auditLog.setUsername(user.getUsername());
-            auditLog.setAction("USER_CREATED");
-            auditLog.setTimestamp(LocalDateTime.now());
-            auditLogRepository.save(auditLog);
+            // Log audit event
+            logAuditEvent(savedUser, "USER_CREATED");
 
             // ✅ Send email verification link
             sendEmailVerification(savedUser);
@@ -123,12 +115,6 @@ public class AuthService {
             // ✅ Log the registration event
             logger.info("User registered successfully: {}", savedUser.getUsername());
             logger.info("Profile created successfully for user ID: {}", savedUser.getId());
-
-            // ✅ Log the action in the audit log
-            auditLogService.logAction(
-                    "USER_CREATED",
-                    "User " + savedUser.getUsername() + " was created"
-            );
 
             // ✅ Return the user response
             return buildUserResponse(savedUser);
@@ -198,6 +184,27 @@ public class AuthService {
             // If no role is provided, set the default role
             user.setRole(Role.ROLE_USER); // Default role
         }
+    }
+    private void createUserProfile(User user, UserRequest userRequest) {
+        UserProfile profile = new UserProfile();
+        profile.setUser(user);
+        profile.setProfilePictureUrl(userRequest.getProfilePictureUrl());
+        profile.setFirstName(userRequest.getFirstName());
+        profile.setLastName(userRequest.getLastName());
+        profile.setBio(userRequest.getBio());
+        userProfileRepository.save(profile);
+    }
+
+    private void logAuditEvent(User user, String action) {
+        AuditLog auditLog = new AuditLog();
+        auditLog.setUser(user);
+        auditLog.setUser_id(user.getId());
+        auditLog.setUsername(user.getUsername());
+        auditLog.setAction(action);
+        auditLog.setTimestamp(LocalDateTime.now());
+        auditLogRepository.save(auditLog);
+
+        auditLogService.logAction(action, "User " + user.getUsername() + " was created");
     }
     private void sendEmailVerification(User user) {
         String verificationToken = generateEmailVerificationToken(user);
@@ -329,17 +336,65 @@ public class AuthService {
             throw new RuntimeException("Unexpected error while saving user", e);
         }
     }
-    // ✅ Delete a user by ID
-    public void deleteUser(Long id) {
-        if (!userRepository.existsById(id)) {
-            logger.warn("Attempted to delete non-existent user with id: {}", id);
-            throw new UserNotFoundException("User not found with id: " + id);
+    public void changePassword(PasswordChangeRequest changeRequest) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = authentication.getName();
+        logger.info("Attempting to change password for user: {}", currentUsername);
+
+        // Retrieve the current user
+        User user = userRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> {
+                    logger.error("User not found: {}", currentUsername);
+                    throw new UserNotFoundException("User not found: " + currentUsername);
+                });
+
+        // Validate the old password
+        if (!passwordEncoder.matches(changeRequest.getOldPassword(), user.getPassword())) {
+            logger.error("Old password is incorrect for user: {}", currentUsername);
+            throw new InvalidPasswordException("Old password is incorrect.");
         }
+
+        // Check if new password and confirm new password match
+        if (!changeRequest.getNewPassword().equals(changeRequest.getConfirmNewPassword())) {
+            logger.error("New password and confirm new password do not match for user: {}", currentUsername);
+            throw new PasswordMismatchException("New password and confirm new password do not match.");
+        }
+
+        // Update the password
+        user.setPassword(passwordEncoder.encode(changeRequest.getNewPassword()));
+
+        // Save the updated user
+        userRepository.save(user);
+
+        logger.info("Password changed successfully for user: {}", currentUsername);
+    }
+    // ✅ Delete a user by ID (Admin or Owner)
+    public void deleteUser(Long id) {
+        logger.info("Attempting to delete user with id: {}", id);
+
+        User userToDelete = userRepository.findById(id)
+                .orElseThrow(() -> {
+                    logger.warn("Attempted to delete non-existent user with id: {}", id);
+                    return new UserNotFoundException("User not found with id: " + id);
+                });
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = authentication.getName(); // Get the username of the current user
+
+        User currentUser = userRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new UserNotFoundException("Current user not found."));
+
+        // Check if the current user is an admin or the owner of the account to be deleted
+        if (!currentUser.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN"))&& !currentUser.getId().equals(userToDelete.getId())) {
+            logger.warn("Unauthorized user {} attempted to delete user with id: {}", currentUsername, id);
+            throw new UnauthorizedException("You are not authorized to delete this user.");
+        }
+
         try {
             userRepository.deleteById(id);
-            logger.info("User with id: {} deleted successfully", id);
+            logger.info("User with id: {} deleted successfully by {}", id, currentUsername);
         } catch (Exception e) {
-            logger.error("Error deleting user with id: {}", id, e);
+            logger.error("Error deleting user with id: {} by {}", id, currentUsername, e);
             throw new RuntimeException("Failed to delete user: " + e.getMessage()); // Or a custom exception
         }
     }
@@ -407,6 +462,63 @@ public class AuthService {
             throw new PasswordResetException("Failed to reset password: " + ex.getMessage());
         }
     }
+
+    // RESET PASSWORD - FORCED BY ADMIN
+    public void resetPasswordForcedByAdmin(PasswordResetRequest resetRequest) {
+        logger.info("Starting password reset for user: {}", resetRequest.getUsername());
+        try {
+            // Retrieve the user by username
+            User user = userRepository.findByUsername(resetRequest.getUsername())
+                    .orElseThrow(() -> new UserNotFoundException("User not found: " + resetRequest.getUsername()));
+            logger.debug("User found: {}", user.getUsername());
+
+            // Check if the temporary password has expired
+            if (user.getTemporaryPasswordExpiry() == null || LocalDateTime.now().isAfter(user.getTemporaryPasswordExpiry())) {
+                logger.warn("Temporary password expired for user: {}", user.getUsername());
+                throw new TemporaryPasswordExpiredException("Temporary password has expired.");
+            }
+            logger.debug("Temporary password expiry check passed for user: {}", user.getUsername());
+
+            // Validate the temporary password
+            if (!passwordEncoder.matches(resetRequest.getTemporaryPassword(), user.getTemporaryPassword())) {
+                logger.warn("Invalid temporary password attempt for user: {}", user.getUsername());
+                throw new InvalidPasswordException("Invalid temporary password.");
+            }
+            logger.debug("Temporary password validation passed for user: {}", user.getUsername());
+
+            // Update the password with the new password
+            user.setPassword(passwordEncoder.encode(resetRequest.getNewPassword()));
+            logger.debug("Password updated for user: {}", user.getUsername());
+
+            // Reset the temporary password and expiry time
+            user.setTemporaryPassword(null);
+            user.setTemporaryPasswordExpiry(null);
+            logger.debug("Temporary password and expiry reset for user: {}", user.getUsername());
+
+            // Reset the forcePasswordReset flag
+            user.setForcePasswordReset(false);
+            logger.debug("Force password reset flag reset for user: {}", user.getUsername());
+
+            // Save the updated user
+            userRepository.save(user);
+            logger.info("Password reset successful for user: {}", user.getUsername());
+
+        } catch (UserNotFoundException e) {
+            logger.error("User not found during password reset: {}", resetRequest.getUsername(), e);
+            throw e;
+        } catch (TemporaryPasswordExpiredException e) {
+            logger.error("Temporary password expired for user: {}", resetRequest.getUsername(), e);
+            throw e;
+        } catch (InvalidPasswordException e) {
+            logger.error("Invalid temporary password for user: {}", resetRequest.getUsername(), e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("An unexpected error occurred during password reset for user: {}", resetRequest.getUsername(), e);
+            throw new RuntimeException("Error resetting password", e);
+        }
+        logger.info("Finished password reset for user: {}", resetRequest.getUsername());
+    }
+
     // ✅ Register user with social login
     public User registerWithSocialLogin(String email, String provider, String providerId) {
         User user = new User();

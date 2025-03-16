@@ -115,12 +115,27 @@ public class EmailService {
         }
     }
 
-    /**
-     * Sends a welcome email to the user after successful registration.
-     *
-     * @param email The user's email address.
-     * @param name  The user's name.
-     */
+    @Async
+    public void sendPasswordResetEmailToTheUser(String userEmail, String temporaryPassword) {
+        String subject = "Password Reset Required";
+        String body = "Your password has been reset by the admin. Please use the following temporary password to reset your password:\n\n"
+                + "Temporary Password: " + temporaryPassword + "\n\n"
+                + "This temporary password will expire in 24 hours.";
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(userEmail);
+        message.setSubject(subject);
+        message.setText(body);
+
+        mailSender.send(message);
+    }
+
+        /**
+         * Sends a welcome email to the user after successful registration.
+         *
+         * @param email The user's email address.
+         * @param name  The user's name.
+         */
     @Async
     public void sendWelcomeEmail(String email, String name) {
         try {

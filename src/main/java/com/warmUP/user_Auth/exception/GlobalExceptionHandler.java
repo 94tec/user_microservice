@@ -95,6 +95,41 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<?> handleIUnauthorizedException(UnauthorizedException ex, WebRequest request) {
+        logger.error("UnauthorizedException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(ForcePasswordResetException.class)
+    public ResponseEntity<?> handleForcePasswordResetException(ForcePasswordResetException ex, WebRequest request) {
+        logger.error("ForcePasswordResetException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(InvalidPasswordException.class)
+    public ResponseEntity<?> handleInvalidPasswordException(InvalidPasswordException ex, WebRequest request) {
+        logger.error("InvalidPasswordException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(TemporaryPasswordExpiredException.class)
+    public ResponseEntity<?> handleTemporaryPasswordExpiredException(TemporaryPasswordExpiredException ex, WebRequest request) {
+        logger.error("TemporaryPasswordExpiredException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(PasswordMismatchException.class)
+    public ResponseEntity<?> handlePasswordMismatchException(PasswordMismatchException ex, WebRequest request) {
+        logger.error("PasswordMismatchException: {}", ex.getMessage(), ex);
+        ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(), request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
+    }
+
     // Handle AccessDeniedException
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<?> handleAccessDeniedException(

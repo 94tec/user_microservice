@@ -1,6 +1,7 @@
 package com.warmUP.user_Auth.controller;
 
 import com.warmUP.user_Auth.dto.UserDTO;
+import com.warmUP.user_Auth.dto.UserUpdateDTO;
 import com.warmUP.user_Auth.exception.*;
 import com.warmUP.user_Auth.model.User;
 import com.warmUP.user_Auth.service.UserService;
@@ -9,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -32,7 +35,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody User userDetails) {
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody UserUpdateDTO userDetails) {
         try {
             User updatedUser = userService.updateUser(id, userDetails);
             return ResponseEntity.ok(updatedUser);
@@ -91,12 +94,12 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> getUserById(@PathVariable Long id) {
+    public ResponseEntity<?> getUserById(@PathVariable Long id, @AuthenticationPrincipal UserDetails currentUser) {
         try {
             logger.info("Fetching user with ID: {}", id);
 
             // Fetch the user by ID
-            UserDTO user = userService.findUserById(id);
+            UserDTO user = userService.findUserById(id, currentUser);
 
             // Return the user with HTTP 200 OK
             return ResponseEntity.ok(user);

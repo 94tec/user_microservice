@@ -2,6 +2,7 @@ package com.warmUP.user_Auth.service;
 
 import com.warmUP.user_Auth.dto.UserDTO;
 import com.warmUP.user_Auth.dto.UserProfileDTO;
+import com.warmUP.user_Auth.dto.UserUpdateDTO;
 import com.warmUP.user_Auth.exception.*;
 import com.warmUP.user_Auth.model.*;
 import com.warmUP.user_Auth.repository.UserRepository;
@@ -21,6 +22,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -105,7 +111,9 @@ public class UserService {
         }
     }
     // ✅ Get a user by ID
-    public UserDTO findUserById(Long id) {
+    public UserDTO findUserById(Long id, UserDetails currentUser) {
+        // Retrieve the current user from the Spring Security context
+        currentUser = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         // Validate the ID
         if (id == null || id <= 0) {
             logger.error("Invalid user ID: {}", id);
@@ -118,6 +126,11 @@ public class UserService {
                     logger.error("User not found with ID: {}", id);
                     return new UserNotFoundException("User not found with ID: " + id);
                 });
+        // Authorization check
+        if (!currentUser.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN")) && !currentUser.getUsername().equals(user.getUsername())) {
+            logger.error("Unauthorized access attempt by user: {}", currentUser.getUsername());
+            throw new AccessDeniedException("You are not authorized to access this resource");
+        }
 
         // Map the User entity to UserDTO
         return mapToUserDTO(user);
@@ -128,6 +141,7 @@ public class UserService {
         userDTO.setUsername(user.getUsername());
         userDTO.setFirstName(user.getFirstName());
         userDTO.setLastName(user.getLastName());
+        userDTO.setRole(String.valueOf(user.getRole()));
         userDTO.setEmail(user.getEmail());
         userDTO.setEmailVerified(user.isEmailVerified());
         userDTO.setActive(user.isActive());
@@ -137,21 +151,27 @@ public class UserService {
         userDTO.setProvider(user.getProvider());
         userDTO.setProviderId(user.getProviderId());
 
-        // Map UserProfile to UserProfileDTO
-        if (user.getUserProfile() != null) {
-            UserProfileDTO userProfileDTO = new UserProfileDTO();
-            userProfileDTO.setFirstName(user.getUserProfile().getFirstName());
-            userProfileDTO.setLastName(user.getUserProfile().getLastName());
-            userProfileDTO.setProfilePictureUrl(user.getUserProfile().getProfilePictureUrl());
-            userProfileDTO.setBio(user.getUserProfile().getBio());
-            userProfileDTO.setPublic(user.getUserProfile().isPublic());
-            userDTO.setUserProfile(userProfileDTO);
-        }
+        // Map user profile
+        UserProfileDTO userProfileDTO = new UserProfileDTO();
+        userProfileDTO.setFirstName(user.getUserProfile().getFirstName());
+        userProfileDTO.setLastName(user.getUserProfile().getLastName());
+        userProfileDTO.setProfilePictureUrl(user.getUserProfile().getProfilePictureUrl());
+        userProfileDTO.setBio(user.getUserProfile().getBio());
+        userProfileDTO.setPublic(user.getUserProfile().isPublic());
+        userDTO.setUserProfile(userProfileDTO);
+
+        // Map authorities as strings
+        List<String> authorityNames = user.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
+        userDTO.setAuthorities(authorityNames);
 
         return userDTO;
     }
 
-    public User updateUser(Long id, User userDetails) {
+    public User updateUser(Long id, UserUpdateDTO userDetails) {
+        logger.info("Attempting to update user with id: {}", id);
+
         // Validate the user ID
         if (id == null || id <= 0) {
             logger.error("Invalid user ID: {}", id);
@@ -164,32 +184,44 @@ public class UserService {
             throw new InvalidUserDetailsException("User details cannot be null");
         }
 
-        // Retrieve the user
+        // Retrieve the user to update
         User user = userRepository.findById(id)
                 .orElseThrow(() -> {
                     logger.error("User not found with ID: {}", id);
                     return new ResourceNotFoundException("User not found with ID: " + id);
                 });
 
-        // Update user fields
-        updateUserFields(user, userDetails);
+        // Authorization Check
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = authentication.getName();
+        User currentUser = userRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new ResourceNotFoundException("Current user not found."));
 
-        // Save the updated user
-        User updatedUser = userRepository.save(user);
-        logger.info("User updated successfully with ID: {}", id);
-        // Log the email verification action
-        auditLogService.logAction("USER_UPDATED", user.getUsername());
-        return updatedUser;
-    }
-
-    private void updateUserFields(User user, User userDetails) {
-        if (userDetails.getUsername() != null) {
-            user.setUsername(userDetails.getUsername());
+        if (!currentUser.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN"))&& !currentUser.getId().equals(user.getId())) {
+            logger.warn("Unauthorized user {} attempted to update user with id: {}", currentUsername, id);
+            throw new UnauthorizedException("You are not authorized to update this user.");
         }
 
-        // Ensure password is re-encoded if updated
-        if (userDetails.getPassword() != null && !userDetails.getPassword().isBlank()) {
-            user.setPassword(passwordEncoder.encode(userDetails.getPassword()));
+        try {
+            // Update user fields
+            updateUserFields(user, userDetails);
+
+            // Save the updated user
+            User updatedUser = userRepository.save(user);
+            logger.info("User updated successfully with ID: {} by {}", id, currentUsername);
+
+            // Log the email verification action
+            auditLogService.logAction("USER_UPDATED", user.getUsername());
+            return updatedUser;
+        } catch (Exception e) {
+            logger.error("Error updating user with ID: {} by {}", id, currentUsername, e);
+            throw new RuntimeException("Failed to update user: " + e.getMessage());
+        }
+    }
+
+    private void updateUserFields(User user, UserUpdateDTO userDetails) {
+        if (userDetails.getUsername() != null) {
+            user.setUsername(userDetails.getUsername());
         }
 
         if (userDetails.getFirstName() != null) {
@@ -205,7 +237,7 @@ public class UserService {
         }
 
         if (userDetails.getRole() != null) {
-            user.setRole(userDetails.getRole());
+            user.setRole(Role.valueOf(userDetails.getRole()));
         }
     }
     // Get a user by ID
