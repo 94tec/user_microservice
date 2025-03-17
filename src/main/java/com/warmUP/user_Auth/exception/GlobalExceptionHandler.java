@@ -12,12 +12,11 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 
 import java.util.Date;
-import java.util.Map;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(com.warmUP.user_Auth.techStack.exception.GlobalExceptionHandler.class);
 
     @ExceptionHandler(DuplicateUserException.class)
     public ResponseEntity<?> handleDuplicateUserException(DuplicateUserException ex, WebRequest request) {
